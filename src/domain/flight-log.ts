@@ -86,6 +86,12 @@ export class FlightLog extends Domain.View("FlightLog", {
           verified: true,
         }),
       ),
+    NameCollided: (s, e, c) =>
+      append(
+        s,
+        c,
+        draft({ kind: "event", name: e._tag, tool: e.tool, provider: e.provider, verified: true }),
+      ),
     CallRouted: (s, e, c) =>
       append(
         s,

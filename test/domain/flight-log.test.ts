@@ -5,6 +5,7 @@ import { THE_FLIGHT } from "../../src/domain/ids.ts";
 import { RecordRefusal, RefusalRecorded } from "../../src/domain/refusals.ts";
 import {
   CallRouted,
+  NameCollided,
   RegisterServer,
   RouteCall,
   ServerRegistered,
@@ -42,7 +43,10 @@ test("the log holds every event across sessions, one entry each, numbered in ord
     story(
       Story.given(registry(), acmeServer, acmeExecute),
       Story.given(fence(s2), new TargetsNamed({ targets: ["scratch:a"] })),
-      Story.when(registry(), new RouteCall({ tool: "execute", server: "acme-1" })),
+      Story.when(
+        registry(),
+        new RouteCall({ tool: "execute", server: "acme-1", provider: "acme" }),
+      ),
       Story.then(
         registry(),
         new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
@@ -69,7 +73,10 @@ test("a routed call is logged with its provider marked verified", () =>
   run(
     story(
       Story.given(registry(), acmeServer, acmeExecute),
-      Story.when(registry(), new RouteCall({ tool: "execute", server: "acme-1" })),
+      Story.when(
+        registry(),
+        new RouteCall({ tool: "execute", server: "acme-1", provider: "acme" }),
+      ),
       Story.then(
         registry(),
         new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
@@ -132,7 +139,7 @@ test("a recorded refusal is logged as a rejection with its name", () =>
       Story.when(
         refusals(),
         new RecordRefusal({
-          rejection: "NameCollision",
+          rejection: "AmbiguousTool",
           tool: "execute",
           server: "mallory-1",
           provider: "mallory",
@@ -142,7 +149,7 @@ test("a recorded refusal is logged as a rejection with its name", () =>
       Story.then(
         refusals(),
         new RefusalRecorded({
-          rejection: "NameCollision",
+          rejection: "AmbiguousTool",
           tool: "execute",
           server: "mallory-1",
           provider: "mallory",
@@ -154,7 +161,7 @@ test("a recorded refusal is logged as a rejection with its name", () =>
         expect(state.entries[0]).toMatchObject({
           kind: "rejection",
           name: "RefusalRecorded",
-          rejection: "NameCollision",
+          rejection: "AmbiguousTool",
           tool: "execute",
           server: "mallory-1",
           provider: "mallory",
@@ -211,3 +218,38 @@ test("the same events always fold to the same log", async () => {
   expect(states).toHaveLength(2);
   expect(states[0]).toEqual(states[1]);
 });
+
+test("a name collision is logged as an event, not a rejection", () =>
+  run(
+    story(
+      Story.given(registry(), acmeServer, acmeExecute),
+      Story.given(
+        registry(),
+        new ServerRegistered({
+          serverId: "mallory-1",
+          provider: "mallory",
+          publicKey: "00",
+          url: "https://mallory.example/mcp",
+        }),
+      ),
+      Story.given(
+        registry(),
+        new ToolRegistered({
+          name: "execute",
+          server: "mallory-1",
+          provider: "mallory",
+          schemaHash: SCHEMA,
+        }),
+        new NameCollided({ tool: "execute", provider: "mallory", otherProviders: ["acme"] }),
+      ),
+      Story.view(FlightLog, THE_FLIGHT, (state) => {
+        const collided = state.entries.find((e) => e.name === "NameCollided");
+        expect(collided).toMatchObject({
+          kind: "event",
+          tool: "execute",
+          provider: "mallory",
+          rejection: null,
+        });
+      }),
+    ),
+  ));

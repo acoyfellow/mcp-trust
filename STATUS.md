@@ -6,6 +6,16 @@ Brief: `~/cloudflare/.briefs/mcp-trust.md`. Phase log for the orchestrator.
 
 Date: 2026-11-21. Phase 1 is done. Phase 2 has not started. I am waiting for the orchestrator.
 
+## Gate 1 review fix (applied)
+
+The review found that `NameCollision` was first-come-first-served: an impostor with its own valid key that registered `execute` first owned the name. Fixed:
+
+- A tool's identity is (provider, name). `NameCollision` is gone. A second provider's same-name tool is kept, and `NameCollided` is recorded. The registry state is the same in either registration order (story: "registration order does not change what the registry knows").
+- `RouteCall` carries `provider` (nullable). A bare name that two providers expose is refused as `AmbiguousTool`. `Misbinding` now also carries `requestedProvider`.
+- Stories added: impostor registers first and a call for the trusted provider still routes to the trusted server; a call for the trusted provider sent to the impostor's server is a misbinding; a bare-name call is rejected when ambiguous; a bare-name call to the wrong server is a misbinding; the collision is logged as an event.
+- The first mutation run after the change caught 16 of 17. The survivor showed that no story checked the server on a bare-name call. I added that story. The run on the final code caught 17 of 17.
+- E1's claim text in `status.json` and `experiments/tool-passport/README.md` now states the identity rule and defines an impostor call. This definition is mine. Please check it.
+
 ## Done
 
 - Notebook skeleton per the Repo Shape prompt: `README.md`, `status.json`, `experiments/` (three folders, no code yet), `receipts/`, `docs/`.
@@ -18,8 +28,8 @@ Date: 2026-11-21. Phase 1 is done. Phase 2 has not started. I am waiting for the
   - `flight-log.ts`: view `FlightLog`, one key for all sessions.
   - `passport.ts`: passport message, Ed25519 verify and sign helpers.
   - `model.ts`: `McpTrust` model.
-- 33 tests in `test/domain/`: 15 registry stories, 8 fence stories, 7 flight-log stories, 2 model tests (`Domain.verify` is empty; the model runs hosted on `Domain.InMemory`), 1 passport unit test.
-- `scripts/mutation-check.ts`: removes 13 rules one at a time and checks that a story fails.
+- 39 tests in `test/domain/`: 20 registry stories and unit tests, 8 fence stories, 8 flight-log stories, 2 model tests (`Domain.verify` is empty; the model runs hosted on `Domain.InMemory`), 1 passport unit test.
+- `scripts/mutation-check.ts`: removes 17 rules one at a time and checks that a story fails.
 - No Cloudflare resource, no deploy, no network call to any account. No `rex` pane or process was started.
 
 ## Verified
@@ -34,21 +44,19 @@ $ bunx biome check .
 Checked 20 files in 26ms. No fixes applied.
 
 $ bun test
- 33 pass
+ 39 pass
  0 fail
- 20 expect() calls
-Ran 33 tests across 4 files. [208.00ms]
 
 $ bun scripts/mutation-check.ts
 baselineGreen: true   restoredGreen: true
-mutations: 13   caught: 13   notApplied: 0
+mutations: 17   caught: 17   notApplied: 0
 ```
 
 Receipt: `receipts/p1-domain-mutation-check.json`. It lists each mutation and the stories that failed. Every mutation failed at least one story. Some failed several, for example removing signature verification fails 4 stories. Removing `ServerAlreadyRegistered` fails exactly 1.
 
 I confirmed that Biome lint rules are active with a temporary probe file (`debugger` and `any` both flagged). I deleted the probe.
 
-`status.json` moves one claim to `proven`: `P1-domain-rules-covered`, linked to the receipt above. Its scope is 13 hand-picked mutations. It does not prove the rules are complete. E1, E2, E3 stay `unproven` with `receipt: null`.
+`status.json` moves one claim to `proven`: `P1-domain-rules-covered`, linked to the receipt above. Its scope is 17 hand-picked mutations. It does not prove the rules are complete. E1, E2, E3 stay `unproven` with `receipt: null`.
 
 ## Deviations from the brief
 

@@ -2,9 +2,10 @@ import { expect, test } from "bun:test";
 import { Story } from "@alchemy.run/domain/Story";
 import { fromHex, verifyPassport } from "../../src/domain/passport.ts";
 import {
+  AmbiguousTool,
   CallRouted,
   Misbinding,
-  NameCollision,
+  NameCollided,
   RegisterServer,
   RegisterTool,
   RouteCall,
@@ -188,26 +189,41 @@ test("a tool from an unregistered server is refused", () =>
     ),
   ));
 
-test("a second server with a valid passport cannot take a bound name", () =>
+const malloryExecute = new ToolRegistered({
+  name: "execute",
+  server: "mallory-1",
+  provider: "mallory",
+  schemaHash: SCHEMA,
+});
+const acmeRegisterExecute = new RegisterTool({
+  name: "execute",
+  server: "acme-1",
+  schemaHash: SCHEMA,
+  signature: acmePassport("execute"),
+});
+const malloryRegisterExecute = new RegisterTool({
+  name: "execute",
+  server: "mallory-1",
+  schemaHash: SCHEMA,
+  signature: malloryPassport("execute"),
+});
+const route = (tool: string, server: string, provider: string | null) =>
+  new RouteCall({ tool, server, provider });
+
+test("a same-name tool from a second provider is kept and a collision is recorded", () =>
   run(
     story(
       Story.given(registry(), acmeServer, acmeExecute, malloryServer),
-      Story.when(
+      Story.when(registry(), malloryRegisterExecute),
+      Story.then(
         registry(),
-        new RegisterTool({
-          name: "execute",
-          server: "mallory-1",
-          schemaHash: SCHEMA,
-          signature: malloryPassport("execute"),
-        }),
-      ),
-      Story.rejected(
-        new NameCollision({ tool: "execute", boundTo: "acme-1", attemptedBy: "mallory-1" }),
+        malloryExecute,
+        new NameCollided({ tool: "execute", provider: "mallory", otherProviders: ["acme"] }),
       ),
     ),
   ));
 
-test("the same server may register its own tool name again", () =>
+test("the same provider registering its own name again records no collision", () =>
   run(
     story(
       Story.given(registry(), acmeServer, acmeExecute),
@@ -232,11 +248,75 @@ test("the same server may register its own tool name again", () =>
     ),
   ));
 
-test("a call routes to the server the tool is bound to", () =>
+test("impostor registers first: the trusted tool still registers and still routes to the trusted provider", () =>
+  run(
+    story(
+      Story.given(registry(), malloryServer, malloryExecute, acmeServer),
+      Story.when(registry(), acmeRegisterExecute),
+      Story.then(
+        registry(),
+        acmeExecute,
+        new NameCollided({ tool: "execute", provider: "acme", otherProviders: ["mallory"] }),
+      ),
+      Story.when(registry(), route("execute", "acme-1", "acme")),
+      Story.then(
+        registry(),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
+      ),
+      Story.when(registry(), route("execute", "mallory-1", "mallory")),
+      Story.then(
+        registry(),
+        new CallRouted({ tool: "execute", server: "mallory-1", provider: "mallory" }),
+      ),
+    ),
+  ));
+
+test("a call for the trusted provider cannot be sent to the impostor's server", () =>
+  run(
+    story(
+      Story.given(
+        registry(),
+        malloryServer,
+        malloryExecute,
+        acmeServer,
+        acmeExecute,
+        new NameCollided({ tool: "execute", provider: "acme", otherProviders: ["mallory"] }),
+      ),
+      Story.when(registry(), route("execute", "mallory-1", "acme")),
+      Story.rejected(
+        new Misbinding({
+          tool: "execute",
+          requestedServer: "mallory-1",
+          requestedProvider: "acme",
+          boundTo: "acme-1",
+        }),
+      ),
+    ),
+  ));
+
+test("a bare-name call is rejected when two providers expose the name", () =>
+  run(
+    story(
+      Story.given(
+        registry(),
+        malloryServer,
+        malloryExecute,
+        acmeServer,
+        acmeExecute,
+        new NameCollided({ tool: "execute", provider: "acme", otherProviders: ["mallory"] }),
+      ),
+      Story.when(registry(), route("execute", "acme-1", null)),
+      Story.rejected(new AmbiguousTool({ tool: "execute", providers: ["acme", "mallory"] })),
+      Story.when(registry(), route("execute", "mallory-1", null)),
+      Story.rejected(new AmbiguousTool({ tool: "execute", providers: ["acme", "mallory"] })),
+    ),
+  ));
+
+test("a bare-name call routes when only one provider exposes the name", () =>
   run(
     story(
       Story.given(registry(), acmeServer, acmeExecute),
-      Story.when(registry(), new RouteCall({ tool: "execute", server: "acme-1" })),
+      Story.when(registry(), route("execute", "acme-1", null)),
       Story.then(
         registry(),
         new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
@@ -244,13 +324,71 @@ test("a call routes to the server the tool is bound to", () =>
     ),
   ));
 
+test("a bare-name call to the wrong server is a misbinding even when the name is unique", () =>
+  run(
+    story(
+      Story.given(registry(), acmeServer, acmeExecute, malloryServer),
+      Story.when(registry(), route("execute", "mallory-1", null)),
+      Story.rejected(
+        new Misbinding({
+          tool: "execute",
+          requestedServer: "mallory-1",
+          requestedProvider: null,
+          boundTo: "acme-1",
+        }),
+      ),
+    ),
+  ));
+
+test("registration order does not change what the registry knows", async () => {
+  const seen: Array<unknown> = [];
+  const capture = Story.state(registry(), (state) => {
+    seen.push(state.tools);
+  });
+  await run(
+    story(
+      Story.given(registry(), acmeServer, malloryServer),
+      Story.when(registry(), acmeRegisterExecute),
+      Story.then(registry(), acmeExecute),
+      Story.when(registry(), malloryRegisterExecute),
+      Story.then(
+        registry(),
+        malloryExecute,
+        new NameCollided({ tool: "execute", provider: "mallory", otherProviders: ["acme"] }),
+      ),
+      capture,
+    ),
+  );
+  await run(
+    story(
+      Story.given(registry(), acmeServer, malloryServer),
+      Story.when(registry(), malloryRegisterExecute),
+      Story.then(registry(), malloryExecute),
+      Story.when(registry(), acmeRegisterExecute),
+      Story.then(
+        registry(),
+        acmeExecute,
+        new NameCollided({ tool: "execute", provider: "acme", otherProviders: ["mallory"] }),
+      ),
+      capture,
+    ),
+  );
+  expect(seen).toHaveLength(2);
+  expect(seen[0]).toEqual(seen[1]);
+});
+
 test("a call to a server the tool is not bound to is a misbinding", () =>
   run(
     story(
       Story.given(registry(), acmeServer, acmeExecute, malloryServer),
-      Story.when(registry(), new RouteCall({ tool: "execute", server: "mallory-1" })),
+      Story.when(registry(), route("execute", "mallory-1", "acme")),
       Story.rejected(
-        new Misbinding({ tool: "execute", requestedServer: "mallory-1", boundTo: "acme-1" }),
+        new Misbinding({
+          tool: "execute",
+          requestedServer: "mallory-1",
+          requestedProvider: "acme",
+          boundTo: "acme-1",
+        }),
       ),
     ),
   ));
@@ -259,22 +397,48 @@ test("a call to an unregistered tool is a misbinding bound to nothing", () =>
   run(
     story(
       Story.given(registry(), acmeServer),
-      Story.when(registry(), new RouteCall({ tool: "execute", server: "acme-1" })),
-      Story.rejected(new Misbinding({ tool: "execute", requestedServer: "acme-1", boundTo: null })),
+      Story.when(registry(), route("execute", "acme-1", "acme")),
+      Story.rejected(
+        new Misbinding({
+          tool: "execute",
+          requestedServer: "acme-1",
+          requestedProvider: "acme",
+          boundTo: null,
+        }),
+      ),
+      Story.when(registry(), route("execute", "acme-1", null)),
+      Story.rejected(
+        new Misbinding({
+          tool: "execute",
+          requestedServer: "acme-1",
+          requestedProvider: null,
+          boundTo: null,
+        }),
+      ),
     ),
   ));
 
-test("tool names such as __proto__ cannot reach inherited properties", () =>
+test("names such as __proto__ cannot reach inherited properties", () =>
   run(
     story(
       Story.given(registry(), acmeServer),
-      Story.when(registry(), new RouteCall({ tool: "__proto__", server: "acme-1" })),
+      Story.when(registry(), route("__proto__", "acme-1", null)),
       Story.rejected(
-        new Misbinding({ tool: "__proto__", requestedServer: "acme-1", boundTo: null }),
+        new Misbinding({
+          tool: "__proto__",
+          requestedServer: "acme-1",
+          requestedProvider: null,
+          boundTo: null,
+        }),
       ),
-      Story.when(registry(), new RouteCall({ tool: "constructor", server: "acme-1" })),
+      Story.when(registry(), route("execute", "acme-1", "constructor")),
       Story.rejected(
-        new Misbinding({ tool: "constructor", requestedServer: "acme-1", boundTo: null }),
+        new Misbinding({
+          tool: "execute",
+          requestedServer: "acme-1",
+          requestedProvider: "constructor",
+          boundTo: null,
+        }),
       ),
     ),
   ));
@@ -283,8 +447,15 @@ test("sessions do not share registrations", () =>
   run(
     story(
       Story.given(registry(), acmeServer, acmeExecute),
-      Story.when(registry(s2), new RouteCall({ tool: "execute", server: "acme-1" })),
-      Story.rejected(new Misbinding({ tool: "execute", requestedServer: "acme-1", boundTo: null })),
+      Story.when(registry(s2), route("execute", "acme-1", "acme")),
+      Story.rejected(
+        new Misbinding({
+          tool: "execute",
+          requestedServer: "acme-1",
+          requestedProvider: "acme",
+          boundTo: null,
+        }),
+      ),
     ),
   ));
 

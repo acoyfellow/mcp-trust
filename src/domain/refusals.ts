@@ -5,7 +5,7 @@ import { SessionId } from "./ids.ts";
 export const RejectionName = Schema.Literals([
   "ServerAlreadyRegistered",
   "UnverifiedPassport",
-  "NameCollision",
+  "AmbiguousTool",
   "Misbinding",
   "TargetNotNamed",
   "TargetsNotDeclared",

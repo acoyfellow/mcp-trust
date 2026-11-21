@@ -27,22 +27,40 @@ const mutations: ReadonlyArray<Mutation> = [
     to: "server === undefined && false ||",
   },
   {
-    rule: "RegisterTool refuses a name bound to another server (NameCollision)",
+    rule: "RegisterTool records a collision when a second provider exposes the name (NameCollided)",
     file: "src/domain/tool-registry.ts",
-    from: "bound !== undefined && bound.server !== cmd.server) {\n        return new NameCollision",
-    to: "false) {\n        return new NameCollision",
+    from: "...(others.length > 0",
+    to: "...(false",
   },
   {
-    rule: "RouteCall refuses a server the tool is not bound to (Misbinding)",
+    rule: "RegisterTool keeps providers apart: identity is (provider, name)",
+    file: "src/domain/tool-registry.ts",
+    from: "          ...(own(s.tools, e.name) ?? {}),\n",
+    to: "",
+  },
+  {
+    rule: "RouteCall rejects a bare name that two providers expose (AmbiguousTool)",
+    file: "src/domain/tool-registry.ts",
+    from: "if (providers.length > 1) return",
+    to: "if (providers.length > 99) return",
+  },
+  {
+    rule: "RouteCall refuses a server the provider's tool is not bound to (Misbinding)",
     file: "src/domain/tool-registry.ts",
     from: "if (bound === undefined || bound.server !== cmd.server) {",
     to: "if (bound === undefined) {",
   },
   {
-    rule: "RouteCall refuses an unregistered tool (Misbinding)",
+    rule: "RouteCall refuses a tool the provider does not expose (Misbinding)",
     file: "src/domain/tool-registry.ts",
     from: "if (bound === undefined || bound.server !== cmd.server) {",
     to: "if (bound !== undefined && bound.server !== cmd.server) {",
+  },
+  {
+    rule: "RouteCall by bare name checks the server too (Misbinding)",
+    file: "src/domain/tool-registry.ts",
+    from: "if (tool === undefined || tool.server !== cmd.server)",
+    to: "if (tool === undefined)",
   },
   {
     rule: "RequestWrite refuses before targets are named (TargetsNotDeclared)",
@@ -67,6 +85,12 @@ const mutations: ReadonlyArray<Mutation> = [
     file: "src/domain/write-fence.ts",
     from: '...(s._tag === "Declared" ? s.targets : []), ',
     to: "",
+  },
+  {
+    rule: "FlightLog logs a name collision",
+    file: "src/domain/flight-log.ts",
+    from: "NameCollided: (s, e, c) =>\n      append(",
+    to: "NameCollided: (s, e, c) =>\n      s ?? append(",
   },
   {
     rule: "FlightLog numbers entries in order",

@@ -19,7 +19,7 @@ Each claim can fail. The ledger is in `status.json`.
 
 | Id | Claim | State |
 | --- | --- | --- |
-| E1 | Passports block 100% of impostor calls and 0% of trusted calls. Without them, an agent calls the impostor in at least 20% of 50 trials. | unproven |
+| E1 | Tool identity is (provider, name), so registration order decides nothing. Passports block 100% of impostor calls and 0% of trusted calls. Without them, an agent calls the impostor in at least 20% of 50 trials. | unproven |
 | E2 | The fence blocks 100% of injected write targets in 20 poisoned cases, with 0 false blocks in 20 clean tasks, under 5 ms p50. | unproven |
 | E3 | Every gateway event reaches a Rex pane within 1 s p95. Replay rebuilds the `FlightLog` view with the same hash. | unproven |
 
@@ -40,7 +40,7 @@ bun test
 
 One Alchemy Domain model holds all the rules. It is in `src/domain/`. See `docs/domain.md`.
 
-- `ToolRegistry` decides which server owns a tool name and whether its passport verifies.
+- `ToolRegistry` decides whether a passport verifies and which server holds each (provider, name) tool.
 - `WriteFence` decides whether a write target is allowed.
 - `Refusals` records each rejection so the log can show it.
 - `FlightLog` is a view of every event and refusal across sessions.

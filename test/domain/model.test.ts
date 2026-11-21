@@ -46,7 +46,10 @@ test("hosted in memory, commands reach the flight log and rejections reach the c
           signature: acmePassport("execute"),
         }),
       );
-      const routed = yield* registry.send(s1, new RouteCall({ tool: "execute", server: "acme-1" }));
+      const routed = yield* registry.send(
+        s1,
+        new RouteCall({ tool: "execute", server: "acme-1", provider: "acme" }),
+      );
       yield* fence.send(s1, new NameTargets({ targets: ["scratch:a"] }));
       const refused = yield* fence
         .send(s1, new RequestWrite({ tool: "kv_put", target: "decoy:a" }))

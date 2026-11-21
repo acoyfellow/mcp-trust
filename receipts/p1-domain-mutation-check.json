@@ -5,8 +5,8 @@
   "observed": {
     "baselineGreen": true,
     "restoredGreen": true,
-    "mutations": 13,
-    "caught": 13,
+    "mutations": 17,
+    "caught": 17,
     "notApplied": 0,
     "results": [
       {
@@ -37,28 +37,57 @@
         "caught": true
       },
       {
-        "rule": "RegisterTool refuses a name bound to another server (NameCollision)",
+        "rule": "RegisterTool records a collision when a second provider exposes the name (NameCollided)",
         "applied": true,
         "failedStories": [
-          "a second server with a valid passport cannot take a bound name"
+          "a same-name tool from a second provider is kept and a collision is recorded",
+          "impostor registers first: the trusted tool still registers and still routes to the trusted provider",
+          "registration order does not change what the registry knows"
         ],
         "caught": true
       },
       {
-        "rule": "RouteCall refuses a server the tool is not bound to (Misbinding)",
+        "rule": "RegisterTool keeps providers apart: identity is (provider, name)",
         "applied": true,
         "failedStories": [
+          "impostor registers first: the trusted tool still registers and still routes to the trusted provider",
+          "a bare-name call is rejected when two providers expose the name",
+          "registration order does not change what the registry knows"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RouteCall rejects a bare name that two providers expose (AmbiguousTool)",
+        "applied": true,
+        "failedStories": [
+          "a bare-name call is rejected when two providers expose the name"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RouteCall refuses a server the provider's tool is not bound to (Misbinding)",
+        "applied": true,
+        "failedStories": [
+          "a call for the trusted provider cannot be sent to the impostor's server",
           "a call to a server the tool is not bound to is a misbinding"
         ],
         "caught": true
       },
       {
-        "rule": "RouteCall refuses an unregistered tool (Misbinding)",
+        "rule": "RouteCall refuses a tool the provider does not expose (Misbinding)",
         "applied": true,
         "failedStories": [
           "a call to an unregistered tool is a misbinding bound to nothing",
-          "tool names such as __proto__ cannot reach inherited properties",
+          "names such as __proto__ cannot reach inherited properties",
           "sessions do not share registrations"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RouteCall by bare name checks the server too (Misbinding)",
+        "applied": true,
+        "failedStories": [
+          "a bare-name call to the wrong server is a misbinding even when the name is unique"
         ],
         "caught": true
       },
@@ -95,6 +124,14 @@
         "applied": true,
         "failedStories": [
           "a later user turn adds targets and keeps the earlier ones"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "FlightLog logs a name collision",
+        "applied": true,
+        "failedStories": [
+          "a name collision is logged as an event, not a rejection"
         ],
         "caught": true
       },

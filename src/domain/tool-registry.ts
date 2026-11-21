@@ -23,6 +23,12 @@ export class CallRouted extends Domain.Event("CallRouted", {
   provider: Schema.String,
 }) {}
 
+export class NameCollided extends Domain.Event("NameCollided", {
+  tool: Schema.String,
+  provider: Schema.String,
+  otherProviders: Schema.Array(Schema.String),
+}) {}
+
 export class ServerAlreadyRegistered extends Domain.Rejection("ServerAlreadyRegistered", {
   serverId: Schema.String,
 }) {}
@@ -32,15 +38,15 @@ export class UnverifiedPassport extends Domain.Rejection("UnverifiedPassport", {
   server: Schema.String,
 }) {}
 
-export class NameCollision extends Domain.Rejection("NameCollision", {
+export class AmbiguousTool extends Domain.Rejection("AmbiguousTool", {
   tool: Schema.String,
-  boundTo: Schema.String,
-  attemptedBy: Schema.String,
+  providers: Schema.Array(Schema.String),
 }) {}
 
 export class Misbinding extends Domain.Rejection("Misbinding", {
   tool: Schema.String,
   requestedServer: Schema.String,
+  requestedProvider: Schema.NullOr(Schema.String),
   boundTo: Schema.NullOr(Schema.String),
 }) {}
 
@@ -64,16 +70,23 @@ export class RegisterTool extends Domain.Command("RegisterTool", {
     schemaHash: Schema.String,
     signature: Schema.String,
   },
-  events: [ToolRegistered],
-  rejects: [UnverifiedPassport, NameCollision],
+  events: [ToolRegistered, NameCollided],
+  rejects: [UnverifiedPassport],
 }) {}
 
 export class RouteCall extends Domain.Command("RouteCall", {
   target: SessionId,
-  input: { tool: Schema.String, server: Schema.String },
+  input: {
+    tool: Schema.String,
+    server: Schema.String,
+    provider: Schema.NullOr(Schema.String),
+  },
   events: [CallRouted],
-  rejects: [Misbinding],
+  rejects: [Misbinding, AmbiguousTool],
 }) {}
+
+const own = <T>(record: Readonly<Record<string, T>>, key: string): T | undefined =>
+  Object.hasOwn(record, key) ? record[key] : undefined;
 
 const Server = Schema.Struct({
   provider: Schema.String,
@@ -85,7 +98,7 @@ const Tool = Schema.Struct({ server: Schema.String, schemaHash: Schema.String })
 
 const State = Schema.Struct({
   servers: Schema.Record(Schema.String, Server),
-  tools: Schema.Record(Schema.String, Tool),
+  tools: Schema.Record(Schema.String, Schema.Record(Schema.String, Tool)),
 });
 
 export class ToolRegistry extends Domain.Aggregate("ToolRegistry", {
@@ -120,14 +133,10 @@ export class ToolRegistry extends Domain.Aggregate("ToolRegistry", {
       ) {
         return new UnverifiedPassport({ tool: cmd.name, server: cmd.server });
       }
-      const bound = Object.hasOwn(registry.tools, cmd.name) ? registry.tools[cmd.name] : undefined;
-      if (bound !== undefined && bound.server !== cmd.server) {
-        return new NameCollision({
-          tool: cmd.name,
-          boundTo: bound.server,
-          attemptedBy: cmd.server,
-        });
-      }
+      const byProvider = own(registry.tools, cmd.name) ?? {};
+      const others = Object.keys(byProvider)
+        .filter((provider) => provider !== server.provider)
+        .sort();
       return [
         new ToolRegistered({
           name: cmd.name,
@@ -135,24 +144,41 @@ export class ToolRegistry extends Domain.Aggregate("ToolRegistry", {
           provider: server.provider,
           schemaHash: cmd.schemaHash,
         }),
+        ...(others.length > 0
+          ? [
+              new NameCollided({
+                tool: cmd.name,
+                provider: server.provider,
+                otherProviders: others,
+              }),
+            ]
+          : []),
       ];
     },
     RouteCall: (registry, cmd) => {
-      const bound = Object.hasOwn(registry.tools, cmd.tool) ? registry.tools[cmd.tool] : undefined;
-      if (bound === undefined || bound.server !== cmd.server) {
-        return new Misbinding({
+      const byProvider = own(registry.tools, cmd.tool) ?? {};
+      const providers = Object.keys(byProvider).sort();
+      const misbinding = (boundTo: string | null) =>
+        new Misbinding({
           tool: cmd.tool,
           requestedServer: cmd.server,
-          boundTo: bound === undefined ? null : bound.server,
+          requestedProvider: cmd.provider,
+          boundTo,
         });
+      if (cmd.provider === null) {
+        if (providers.length > 1) return new AmbiguousTool({ tool: cmd.tool, providers });
+        const only = providers[0];
+        if (only === undefined) return misbinding(null);
+        const tool = byProvider[only];
+        if (tool === undefined || tool.server !== cmd.server)
+          return misbinding(tool?.server ?? null);
+        return [new CallRouted({ tool: cmd.tool, server: cmd.server, provider: only })];
       }
-      return [
-        new CallRouted({
-          tool: cmd.tool,
-          server: cmd.server,
-          provider: registry.servers[bound.server]?.provider ?? "",
-        }),
-      ];
+      const bound = own(byProvider, cmd.provider);
+      if (bound === undefined || bound.server !== cmd.server) {
+        return misbinding(bound === undefined ? null : bound.server);
+      }
+      return [new CallRouted({ tool: cmd.tool, server: cmd.server, provider: cmd.provider })];
     },
   },
   evolve: {
@@ -165,8 +191,15 @@ export class ToolRegistry extends Domain.Aggregate("ToolRegistry", {
     }),
     ToolRegistered: (s, e) => ({
       ...s,
-      tools: { ...s.tools, [e.name]: { server: e.server, schemaHash: e.schemaHash } },
+      tools: {
+        ...s.tools,
+        [e.name]: {
+          ...(own(s.tools, e.name) ?? {}),
+          [e.provider]: { server: e.server, schemaHash: e.schemaHash },
+        },
+      },
     }),
+    NameCollided: (s) => s,
     CallRouted: (s) => s,
   },
 }) {}
