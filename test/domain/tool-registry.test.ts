@@ -266,12 +266,17 @@ test("impostor registers first: the trusted tool still registers and still route
       Story.when(registry(), route("execute", "acme-1", "acme")),
       Story.then(
         registry(),
-        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme", pinned: false }),
       ),
       Story.when(registry(), route("execute", "mallory-1", "mallory")),
       Story.then(
         registry(),
-        new CallRouted({ tool: "execute", server: "mallory-1", provider: "mallory" }),
+        new CallRouted({
+          tool: "execute",
+          server: "mallory-1",
+          provider: "mallory",
+          pinned: false,
+        }),
       ),
     ),
   ));
@@ -324,7 +329,7 @@ test("a bare-name call routes when only one provider exposes the name", () =>
       Story.when(registry(), route("execute", "acme-1", null)),
       Story.then(
         registry(),
-        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme", pinned: false }),
       ),
     ),
   ));
@@ -492,7 +497,7 @@ test("a call to the provider the user named is routed", () =>
       Story.when(registry(), route("execute", "acme-1", "acme", ["acme"])),
       Story.then(
         registry(),
-        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme", pinned: true }),
       ),
     ),
   ));
@@ -508,7 +513,7 @@ test("an impostor that registered first does not change which provider a named c
       Story.when(registry(), route("execute", "acme-1", "acme", ["acme"])),
       Story.then(
         registry(),
-        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme", pinned: true }),
       ),
     ),
   ));
@@ -554,6 +559,30 @@ test("provider names match exactly: a lookalike provider is not the named one", 
       Story.when(registry(), route("execute", "lookalike-1", "acme-mcp", ["acme"])),
       Story.rejected(
         new ProviderNotNamed({ tool: "execute", provider: "acme-mcp", named: ["acme"] }),
+      ),
+    ),
+  ));
+
+test("CallRouted says pinned: false when the user prompt named no provider", () =>
+  run(
+    story(
+      Story.given(registry(), acmeServer, acmeExecute),
+      Story.when(registry(), route("execute", "acme-1", "acme", null)),
+      Story.then(
+        registry(),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme", pinned: false }),
+      ),
+    ),
+  ));
+
+test("CallRouted says pinned: true when the user prompt named the provider", () =>
+  run(
+    story(
+      Story.given(registry(), acmeServer, acmeExecute),
+      Story.when(registry(), route("execute", "acme-1", "acme", ["acme"])),
+      Story.then(
+        registry(),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme", pinned: true }),
       ),
     ),
   ));

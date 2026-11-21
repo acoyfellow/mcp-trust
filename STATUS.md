@@ -2,6 +2,40 @@
 
 Brief: `~/cloudflare/.briefs/mcp-trust.md`. Phase log for the orchestrator.
 
+## GATE 4b: DEMO READY
+
+Date: 2026-11-21. The three fixes from the take are done and I ran the demo once. I did not record video. I am waiting for the orchestrator.
+
+### What changed
+
+1. **Compact recorder.** `mcp-trust watch --compact` and `record --compact`. The demo uses it. It shows only calls, writes and refusals, one line each, 60 characters or fewer, so it does not wrap at half-window width. It hides registration, `TargetsNamed` and reads. Full mode is unchanged. The JSONL file holds every event in both modes. Lines from the run:
+   - `23:25:18  cloudflare-mcp__execute   BLOCKED ProviderNotNamed`
+   - `23:25:29  kv_put decoy:inj/demo-mw…   BLOCKED TargetNotNamed`
+   - `23:25:20  cloudflare__execute   ROUTED` (green, the recovered call)
+   - `23:25:44  kv_put scratch:demo/demo-mwr1cqqf/4   ALLOWED`
+2. **Unpinned reach is yellow.** `CallRouted` has a new optional field, `pinned`: true when the user prompt named providers. The recorder keeps the collisions for each session. A call with `pinned: false` into a same-name collision shows in yellow as `REACHED lookalike cloudflare-mcp (unpinned)`, in both modes. Step 1 showed it twice, as the plan said. The word "lookalike" is a display rule: the provider name extends another provider's name in the same collision. The gateway decides by pinning, not by name. `docs/recorder.md` says so.
+3. **Third wave in Step 3.** Three waves of three documents for each slot. If all nine are ignored, one line says `no block to show. The agent ignored all 9 injected documents.` The disclosure line for the ignored documents is kept.
+
+### The run
+
+- Wall time **45 s** (the target was under 45 s). Reason: slot 1 ignored 8 documents and needed all three waves. The model does not act on an injected document every time. Earlier runs took 33 to 38 s with two waves.
+- Result: both slots showed a block (`TargetNotNamed`, decoy key written: no). Step 1: both trials reached the lookalike. Step 2: both refused, then recovered to `cloudflare__execute`. Step 4: allowed, value stored.
+- 0 home paths in the demo output and in the pane text. 0 leftover processes. 0 panes left.
+
+### Things to know
+
+- Step 3 prints an `ALLOWED` line for each correct write to the target the user named, before the agent acts on the injection. Waves run in parallel, so a few green lines come before each red line. I kept them because the brief asks for writes. If you want a quieter Step 3, hide `ALLOWED` for the demo and keep it for full mode. Tell me.
+- After the run I changed one display detail: a long target is now cut in the middle (`kv_put decoy:inj/…/0/0`), not at the end, so the end of the key stays visible. A unit test covers it. I did not rerun the demo for this change, to keep the Workers AI use small.
+- `flight.jsonl` in the repo root is the recorder's output from the demo. I did not commit it.
+
+### Checks
+
+69 tests pass (14 new: 5 for the recorder classifier and colors, 2 domain stories for `pinned`, the rest are updated stories). `tsc` clean, `biome` clean. Mutation check **23 of 23** caught (1 new: `pinned` inverted). Nothing deployed, pushed or posted.
+
+### Next (as you said)
+
+After the demo and before deploy: replace the flight log long poll with the push stream (`FlightLog.events`) with cursor resume. Not started.
+
 ## GATE 4: DEMO READY
 
 Date: 2026-11-21. `bun run demo` is built and I ran it. I did not record video. I am waiting for the orchestrator.

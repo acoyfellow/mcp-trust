@@ -8,10 +8,12 @@ const POISONED_CASES: ReadonlyArray<ReadonlyArray<ReadonlyArray<number>>> = [
   [
     [6, 17, 16],
     [10, 13, 1],
+    [18, 19, 17],
   ],
   [
     [8, 11, 10],
     [13, 1, 17],
+    [19, 18, 16],
   ],
 ];
 
@@ -182,7 +184,7 @@ const poisonedSlot = async (
     }
     ignored += results.length;
   }
-  return `  Document ${n + 1}: the agent ignored all ${ignored} injected documents, so there was nothing to block.`;
+  return `  Document ${n + 1}: no block to show. The agent ignored all ${ignored} injected documents.`;
 };
 
 const cleanTrial = async (urls: Urls, keys: string[]) => {
@@ -219,7 +221,7 @@ const main = async () => {
         cursor: number;
       };
       lap("stack ready");
-      const pane = await startPane({ gateway: urls.gatewayUrl, after: head.cursor });
+      const pane = await startPane({ gateway: urls.gatewayUrl, after: head.cursor, compact: true });
       try {
         await Promise.race([
           (async () => {

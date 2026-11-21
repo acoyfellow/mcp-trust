@@ -49,7 +49,7 @@ test("the log holds every event across sessions, one entry each, numbered in ord
       ),
       Story.then(
         registry(),
-        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme", pinned: false }),
       ),
       Story.when(fence(s2), new RequestWrite({ tool: "kv_put", target: "scratch:a" })),
       Story.then(fence(s2), new WriteAllowed({ tool: "kv_put", target: "scratch:a" })),
@@ -79,7 +79,7 @@ test("a routed call is logged with its provider marked verified", () =>
       ),
       Story.then(
         registry(),
-        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme", pinned: false }),
       ),
       Story.view(FlightLog, THE_FLIGHT, (state) => {
         const routed = state.entries.find((e) => e.name === "CallRouted");

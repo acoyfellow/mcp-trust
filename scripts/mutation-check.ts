@@ -9,6 +9,12 @@ interface Mutation {
 
 const mutations: ReadonlyArray<Mutation> = [
   {
+    rule: "CallRouted records pinned: true only when the user prompt named providers",
+    file: "src/domain/tool-registry.ts",
+    from: "pinned: cmd.named !== null,",
+    to: "pinned: cmd.named === null,",
+  },
+  {
     rule: "RegisterServer refuses a server id that exists (ServerAlreadyRegistered)",
     file: "src/domain/tool-registry.ts",
     from: "Object.hasOwn(registry.servers, cmd.serverId)\n        ? new ServerAlreadyRegistered",

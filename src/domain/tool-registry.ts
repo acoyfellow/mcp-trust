@@ -21,6 +21,7 @@ export class CallRouted extends Domain.Event("CallRouted", {
   tool: Schema.String,
   server: Schema.String,
   provider: Schema.String,
+  pinned: Schema.optionalKey(Schema.Boolean),
 }) {}
 
 export class NameCollided extends Domain.Event("NameCollided", {
@@ -175,7 +176,14 @@ export class ToolRegistry extends Domain.Aggregate("ToolRegistry", {
       const routed = (provider: string) =>
         cmd.named !== null && !cmd.named.includes(provider)
           ? new ProviderNotNamed({ tool: cmd.tool, provider, named: cmd.named })
-          : [new CallRouted({ tool: cmd.tool, server: cmd.server, provider })];
+          : [
+              new CallRouted({
+                tool: cmd.tool,
+                server: cmd.server,
+                provider,
+                pinned: cmd.named !== null,
+              }),
+            ];
       if (cmd.provider === null) {
         if (providers.length > 1) return new AmbiguousTool({ tool: cmd.tool, providers });
         const only = providers[0];

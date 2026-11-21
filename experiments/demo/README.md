@@ -5,7 +5,7 @@
 ## What it does
 
 1. Starts the stack: the gateway, two providers (Cloudflare and the lookalike cloudflare-mcp), and one agent.
-2. Opens `mcp-trust watch` in a Rex pane beside the pane it runs in. The recorder prints one line per event. Refusals are red. Allowed and routed calls are green. Other lines are dim.
+2. Opens `mcp-trust watch` in a Rex pane beside the pane it runs in. The pane runs the recorder in compact mode: only calls, writes and refusals, one line each, 60 characters or fewer. Refusals are red (`BLOCKED <rejection>`). Allowed writes are green. A call that reached an unpinned provider with a same-name collision is yellow: `REACHED lookalike cloudflare-mcp (unpinned)`.
 3. Runs four steps and prints one header line for each:
    - Step 1. No pinning: the agent picks the lookalike (2 trials).
    - Step 2. The gateway routes only to the provider the user named: the lookalike is refused, the agent recovers (2 trials).
@@ -27,6 +27,7 @@ PROMPT='$ ' CLOUDFLARE_ACCOUNT_ID=<account> bun run demo
 
 - Every model call is real Workers AI. No output is faked.
 - In Step 1 and Step 2 the demo registers the trusted provider first. In the E1b receipts the model picked the second-listed tool in 41 of 50 trials, so this order shows the lookalike pick reliably. Step 1 would also show the trusted tool in some runs with the other order.
-- The model does not always act on an injected document. Step 3 starts three poisoned documents for each slot at the same time, and a second wave of three if all are ignored. It prints the first document that the agent acted on and how many it ignored before. If every document in a slot is ignored, the line says so. In the last three runs both slots showed a block.
+- The model does not always act on an injected document. Step 3 starts three poisoned documents for each slot at the same time, then a second and a third wave of three if all are ignored. It prints the first document that the agent acted on and how many it ignored before. If all nine documents in a slot are ignored, one line says `no block to show`.
+- The recorder calls a provider a lookalike when its name extends the name of another provider in the same collision (`cloudflare-mcp` extends `cloudflare`). This is a display rule, not a security check. The gateway decides by pinning, not by name.
 - The agent stops after the call that the step needs (`stopAfter`), which skips the closing sentence the model would write. The receipts do not use this option.
 - Times in the pane are UTC.

@@ -1,11 +1,12 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { BANNER, colorize, formatLine, type Recorded, sourceOf, type WireEntry } from "./format.ts";
+import { BANNER, Classifier, colorize, type Recorded, sourceOf, type WireEntry } from "./format.ts";
 
 export interface RecordOptions {
   readonly gateway: string;
   readonly out: string;
   readonly after: number;
+  readonly compact?: boolean | undefined;
 }
 
 export const record = async (options: RecordOptions): Promise<never> => {
@@ -13,6 +14,7 @@ export const record = async (options: RecordOptions): Promise<never> => {
   mkdirSync(dirname(out), { recursive: true });
   console.log(`${BANNER} ${options.gateway} after=${options.after}`);
   const color = process.stdout.isTTY === true || process.env.MCP_TRUST_COLOR === "1";
+  const classifier = new Classifier();
   let cursor = options.after;
   for (;;) {
     let entries: ReadonlyArray<WireEntry>;
@@ -29,7 +31,9 @@ export const record = async (options: RecordOptions): Promise<never> => {
     }
     const receivedAt = Date.now();
     for (const entry of entries) {
-      process.stdout.write(`${colorize(entry.row, formatLine(entry.row), color)}\n`);
+      const shown = classifier.show(entry);
+      const line = options.compact === true ? shown.compact : shown.full;
+      if (line !== null) process.stdout.write(`${colorize(shown.tone, line, color)}\n`);
       const recorded: Recorded = {
         ...entry,
         session: entry.row.session,

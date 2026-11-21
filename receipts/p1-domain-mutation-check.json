@@ -5,10 +5,25 @@
   "observed": {
     "baselineGreen": true,
     "restoredGreen": true,
-    "mutations": 22,
-    "caught": 22,
+    "mutations": 23,
+    "caught": 23,
     "notApplied": 0,
     "results": [
+      {
+        "rule": "CallRouted records pinned: true only when the user prompt named providers",
+        "applied": true,
+        "failedStories": [
+          "the log holds every event across sessions, one entry each, numbered in order",
+          "a routed call is logged with its provider marked verified",
+          "impostor registers first: the trusted tool still registers and still routes to the trusted provider",
+          "a bare-name call routes when only one provider exposes the name",
+          "a call to the provider the user named is routed",
+          "an impostor that registered first does not change which provider a named call reaches",
+          "CallRouted says pinned: false when the user prompt named no provider",
+          "CallRouted says pinned: true when the user prompt named the provider"
+        ],
+        "caught": true
+      },
       {
         "rule": "RegisterServer refuses a server id that exists (ServerAlreadyRegistered)",
         "applied": true,

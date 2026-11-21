@@ -10,7 +10,7 @@ The model is in `src/domain/`. It is the spec. The stories in `test/domain/` run
 | --- | --- | --- |
 | `RegisterServer` | `ServerRegistered` | `ServerAlreadyRegistered` |
 | `RegisterTool` | `ToolRegistered`, `NameCollided` | `UnverifiedPassport` |
-| `RouteCall` | `CallRouted` | `Misbinding`, `AmbiguousTool`, `ProviderNotNamed` |
+| `RouteCall` | `CallRouted` (with `pinned`: true when the user prompt named providers) | `Misbinding`, `AmbiguousTool`, `ProviderNotNamed` |
 
 `WriteFence` is one per agent session. It decides which write targets the agent may use.
 
