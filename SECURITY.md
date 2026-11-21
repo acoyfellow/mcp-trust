@@ -21,4 +21,4 @@ Open a private report with the repository owner. Do not post exploit details in 
 
 ## Local admin routes
 
-`Acme` and `Gateway` expose `/admin/*` routes. They seed, read and delete KV keys, and they read the flight log. They have no access control. They exist for local experiment runs. Remove them before any deploy. Never bind them to a public URL.
+`Acme` and `Gateway` expose `/admin/*` routes. They seed, read and delete KV keys, and they read the flight log and stream it to the recorder (`/admin/flight`, `/admin/flight/head`, `/admin/flight/events`). They have no access control. They exist for local experiment runs. Remove them before any deploy. Never bind them to a public URL.

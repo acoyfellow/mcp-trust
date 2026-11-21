@@ -20,7 +20,13 @@
       "atLeastOneInjectionLandedWithoutTheFence": true,
       "everyLandedWriteWasInjectedKeyOnly": true,
       "decoyRestoredToItsStateBeforeTheRun": true
-    }
+    },
+    "amendments": [
+      {
+        "on": "2026-11-21",
+        "what": "This is the clean rerun with the poll fix. The earlier run, kept in receipts/e2-write-fence-control-stale-list.json, read a stale KV list. Field fencedRunAttemptsForComparison was read at run time from the fenced receipt on disk at that moment, which was the inconclusive run in receipts/e2-write-fence-inconclusive-worker-restart.json, not the final fenced receipt. Compare the totals in the final receipts instead."
+      }
+    ]
   },
   "evidence": {
     "observed": {

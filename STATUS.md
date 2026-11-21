@@ -2,6 +2,54 @@
 
 Brief: `~/cloudflare/.briefs/mcp-trust.md`. Phase log for the orchestrator.
 
+## GATE 3: E3 RECEIPT
+
+Date: 2026-11-21. Phase 4 (deploy) is not mine. I am waiting for the orchestrator.
+
+### E3: verified, run locally (`receipts/e3-flight-recorder.json`)
+
+Claim written in the runner and committed before the official run (commit aee5d04): every gateway event reaches a Rex pane within 1 s p95, and replay rebuilds the `FlightLog` view with the same hash.
+
+- Traffic: 20 sessions, 4 at a time. Each session registers 3 upstream servers and makes 6 real MCP calls through the gateway (read, a named write, an unnamed write, two `execute` calls to two providers, a delete). 23 events per session, **460 events**, 8 event kinds, 60 refusals. No model, so 0 Workers AI neurons.
+- Pane: the recorder ran in a pane opened with `rex split` next to mine. The harness read the pane with `rex capture` in a tight loop. **Every event appeared exactly once** (0 missing, 0 duplicated).
+- Latency from the event's `at` to the pane: **p50 123 ms, p95 276 ms, p99 345 ms, max 348 ms.** The pass line was 1 s. This is an upper bound: the number includes the poll, and one `rex capture` takes 22 ms (p50). The recorder's own write to its stdout was at p50 105 ms, p95 262 ms. Most of that is the gateway's 50 ms poll plus the Durable Object read.
+- Replay: `FlightLog.evolve`, the view's own fold, applied to the 460 recorded raw domain events, starting from the log state at the cursor where recording began. **Replay hash equals the live hash** (`eb3c8b7e…829d`). Dropping one record changes the hash. Swapping two records changes it. So the check can fail.
+- Cleanup: the pane is closed, no process left (`pgrep` 0), scratch keys left 0.
+
+What E3 does not show:
+
+- **Local only.** One machine, one clock, no network between gateway and recorder.
+- **Replay proves no lost, duplicated or reordered events.** It runs the same fold, so it cannot find a bug in the fold. The domain stories do that.
+- **Long poll, not push.** The gateway reads `FlightLog.list` every 50 ms for each open recorder. The library has `FlightLog.events`, a push stream, and I did not use it. It would need a streaming response.
+- **No reconnect test.** The recorder retries and resumes from its cursor. I did not test a dropped connection.
+- **The admin routes have no access control.** `/admin/flight/head` and `/admin/flight/events` join the other `/admin/*` routes. Remove or guard them before deploy. `SECURITY.md` says so.
+- **The log persists between local runs.** The cursor was 2951 when E3 started. The harness starts from `/admin/flight/head`, so this does not change the result.
+- **`mcp-trust watch` itself ran only through the harness path** (`startPane`). I have not typed the command by hand. Its unit tests cover formatting and replay (6 tests).
+
+### What I did on the Gate 2b answers
+
+1. **Fail-closed fence rerun: verified** (`receipts/e2-write-fence.json`). 7 of 7 injected write attempts blocked. 20 of 20 clean tasks completed, 0 false blocks, 0 errors. Fence p50 3 ms, p95 4 ms, max 8 ms. Before: `receipts/e2-write-fence-pre-failclosed.json`.
+2. **E1b arm B with a helpful refusal: verified** (`receipts/e1b-armB-recovery.json`). Claim written first (commit 29df41d). The refusal now reads: `blocked by gateway: ProviderNotNamed. The user asked for provider cloudflare. Call cloudflare__execute instead.` Result: lookalike reached 0 of 50, trusted blocked 0, **50 of 50 tasks complete** (claim: at least 45). The model picked the lookalike first in 37 trials, the gateway refused each, and the model then called the named tool in all 37. Before: 31 of 50 (`receipts/e1b-lookalike-provider.json`, kept).
+3. **E2 control rerun: verified** (`receipts/e2-write-fence-control.json`). 4 of 20 injections landed. The decoy namespace was restored and the poll check passed. The stale-list receipt and its amendment are kept (`…-stale-list.json`). Over both control runs, 10 of 40 injections landed, which is 25%, and the fenced runs saw 6 to 8 attempts out of 20. The model samples differently each time, so quote the rate as about 20 to 30%.
+
+### A mistake I made
+
+The first fenced E2 rerun was **inconclusive**. I edited `package.json`, `tsconfig.json` and `biome.json` while `wrangler dev` was running. It rebuilt and restarted the agent Worker mid-run, and 7 clean tasks failed with 500 and 503. Its poisoned phase was fine (8 of 8 blocked). I kept that receipt as `receipts/e2-write-fence-inconclusive-worker-restart.json`, left the repo alone, and ran E2 again. The control run overlapped the same window but had 0 errors. The control receipt has an amendment: its `fencedRunAttemptsForComparison` field was read from that inconclusive receipt. Compare totals instead. Cost of the mistake: 2,757 neurons.
+
+### Cost of this round
+
+Workers AI neurons: E1b arm B 2,671, E2 inconclusive 2,757, E2 rerun 3,358, control 1,531, plus a 4-trial smoke run. E3 used none.
+
+### Checks
+
+61 tests pass, `tsc` clean, `biome` clean. Mutation check 22 of 22 (unchanged this round). Nothing deployed, pushed or posted. `alchemy.run.ts` still does not deploy the two E1b endpoints, and the gateway needs Access before deploy.
+
+### Questions for the orchestrator
+
+1. Deploy: keep the `/admin/*` routes behind Access, or remove them and ship the recorder feed another way?
+2. Do you want a reconnect test for the recorder before you rely on it?
+3. Which receipts do you want rerun against the deployed gateway?
+
 ## GATE 2b: E1 RESCOPED, E1b, E2 CONTROL, FAIL-CLOSED FENCE
 
 Date: 2026-11-21. Phase 3 has not started. I am waiting for the orchestrator.
