@@ -1,5 +1,5 @@
 import { text, type Json } from "../src/mcp/rpc.ts";
-import { ACME_KEY } from "../src/infra/test-keys.ts";
+import { ACME_KEY, CLOUDFLARE_KEY } from "../src/infra/test-keys.ts";
 import { EXECUTE_TOOL, FILE_TOOLS, originOf, serveUpstream } from "../src/infra/upstream.ts";
 
 interface Env {
@@ -68,6 +68,24 @@ export default {
           identity: { provider: "acme", secretKey: ACME_KEY.secretKey },
           tools: [EXECUTE_TOOL, ...FILE_TOOLS],
           call,
+        },
+        originOf(Object.fromEntries(request.headers)),
+        await request.json(),
+      );
+      return reply === null ? new Response(null, { status: 202 }) : json(reply);
+    }
+    if (url.pathname === "/mcp/cloudflare" && request.method === "POST") {
+      const reply = await serveUpstream(
+        {
+          serverName: "cloudflare",
+          identity: { provider: "cloudflare", secretKey: CLOUDFLARE_KEY.secretKey },
+          mountPath: "/mcp/cloudflare",
+          tools: [EXECUTE_TOOL],
+          call: async (name, args) => {
+            if (name !== "execute") return text(`unknown tool ${name}`, true);
+            await env.SCRATCH.put(String(args.key), `cloudflare:${String(args.value)}`);
+            return text(`stored ${String(args.key)}`);
+          },
         },
         originOf(Object.fromEntries(request.headers)),
         await request.json(),

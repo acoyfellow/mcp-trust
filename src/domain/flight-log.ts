@@ -108,6 +108,8 @@ export class FlightLog extends Domain.View("FlightLog", {
     TargetsNamed: (s, e, c) => append(s, c, draft({ kind: "event", name: e._tag })),
     WriteAllowed: (s, e, c) =>
       append(s, c, draft({ kind: "event", name: e._tag, tool: e.tool, verdict: "allowed" })),
+    ReadAllowed: (s, e, c) =>
+      append(s, c, draft({ kind: "event", name: e._tag, tool: e.tool, verdict: "allowed" })),
     RefusalRecorded: (s, e, c) =>
       append(
         s,

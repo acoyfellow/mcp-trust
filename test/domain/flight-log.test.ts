@@ -45,7 +45,7 @@ test("the log holds every event across sessions, one entry each, numbered in ord
       Story.given(fence(s2), new TargetsNamed({ targets: ["scratch:a"] })),
       Story.when(
         registry(),
-        new RouteCall({ tool: "execute", server: "acme-1", provider: "acme" }),
+        new RouteCall({ tool: "execute", server: "acme-1", provider: "acme", named: null }),
       ),
       Story.then(
         registry(),
@@ -75,7 +75,7 @@ test("a routed call is logged with its provider marked verified", () =>
       Story.given(registry(), acmeServer, acmeExecute),
       Story.when(
         registry(),
-        new RouteCall({ tool: "execute", server: "acme-1", provider: "acme" }),
+        new RouteCall({ tool: "execute", server: "acme-1", provider: "acme", named: null }),
       ),
       Story.then(
         registry(),

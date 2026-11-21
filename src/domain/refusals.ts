@@ -7,6 +7,7 @@ export const RejectionName = Schema.Literals([
   "UnverifiedPassport",
   "AmbiguousTool",
   "Misbinding",
+  "ProviderNotNamed",
   "TargetNotNamed",
   "TargetsNotDeclared",
 ]);

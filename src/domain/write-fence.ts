@@ -11,6 +11,12 @@ export class WriteAllowed extends Domain.Event("WriteAllowed", {
   target: Schema.String,
 }) {}
 
+export class ReadAllowed extends Domain.Event("ReadAllowed", {
+  tool: Schema.String,
+}) {}
+
+export const READ_TOOLS: ReadonlySet<string> = new Set(["read_document"]);
+
 export class TargetNotNamed extends Domain.Rejection("TargetNotNamed", {
   tool: Schema.String,
   target: Schema.String,
@@ -30,7 +36,7 @@ export class NameTargets extends Domain.Command("NameTargets", {
 export class RequestWrite extends Domain.Command("RequestWrite", {
   target: SessionId,
   input: { tool: Schema.String, target: Schema.String },
-  events: [WriteAllowed],
+  events: [WriteAllowed, ReadAllowed],
   rejects: [TargetNotNamed, TargetsNotDeclared],
 }) {}
 
@@ -47,6 +53,7 @@ export class WriteFence extends Domain.Aggregate("WriteFence", {
   decide: {
     NameTargets: (_, cmd) => [new TargetsNamed({ targets: cmd.targets })],
     RequestWrite: (fence, cmd) => {
+      if (READ_TOOLS.has(cmd.tool)) return [new ReadAllowed({ tool: cmd.tool })];
       if (fence._tag === "Undeclared") {
         return new TargetsNotDeclared({ tool: cmd.tool, target: cmd.target });
       }
@@ -61,5 +68,6 @@ export class WriteFence extends Domain.Aggregate("WriteFence", {
       targets: [...new Set([...(s._tag === "Declared" ? s.targets : []), ...e.targets])],
     }),
     WriteAllowed: (s) => s,
+    ReadAllowed: (s) => s,
   },
 }) {}

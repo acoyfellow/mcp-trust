@@ -10,8 +10,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "dev": "alchemy dev --stage mcp_trust_p2",
     "e1": "bun experiments/tool-passport/run.ts",
+    "e1b": "bun experiments/lookalike-provider/run.ts",
+    "e2": "bun experiments/write-fence/run.ts",
+    "e2:control": "bun experiments/write-fence/control.ts",
     "mutation": "bun scripts/mutation-check.ts"
   },
   "dependencies": {

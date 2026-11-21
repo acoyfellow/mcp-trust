@@ -5,8 +5,8 @@
   "observed": {
     "baselineGreen": true,
     "restoredGreen": true,
-    "mutations": 17,
-    "caught": 17,
+    "mutations": 22,
+    "caught": 22,
     "notApplied": 0,
     "results": [
       {
@@ -52,7 +52,10 @@
         "failedStories": [
           "impostor registers first: the trusted tool still registers and still routes to the trusted provider",
           "a bare-name call is rejected when two providers expose the name",
-          "registration order does not change what the registry knows"
+          "registration order does not change what the registry knows",
+          "a call to the provider the user named is routed",
+          "an impostor that registered first does not change which provider a named call reaches",
+          "a prompt that names no provider refuses every call"
         ],
         "caught": true
       },
@@ -96,7 +99,8 @@
         "applied": true,
         "failedStories": [
           "a write before the user names any targets is blocked as undeclared",
-          "targets named in one session do not open writes in another"
+          "targets named in one session do not open writes in another",
+          "an unknown tool before any target is named is blocked as undeclared"
         ],
         "caught": true
       },
@@ -107,7 +111,9 @@
           "hosted in memory, commands reach the flight log and rejections reach the caller",
           "a write to a target the user did not name is blocked",
           "a near-miss target is blocked: matching is exact",
-          "a prompt that names no targets declares an empty set and blocks every write"
+          "a prompt that names no targets declares an empty set and blocks every write",
+          "a tool that is not on the known-read list counts as a write and is blocked",
+          "the known-read list matches tool names exactly"
         ],
         "caught": true
       },
@@ -116,6 +122,63 @@
         "applied": true,
         "failedStories": [
           "a near-miss target is blocked: matching is exact"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RequestWrite treats a tool that is not on the known-read list as a write",
+        "applied": true,
+        "failedStories": [
+          "hosted in memory, commands reach the flight log and rejections reach the caller",
+          "a write to a named target is allowed",
+          "a write to a target the user did not name is blocked",
+          "a near-miss target is blocked: matching is exact",
+          "a write before the user names any targets is blocked as undeclared",
+          "a prompt that names no targets declares an empty set and blocks every write",
+          "a later user turn adds targets and keeps the earlier ones",
+          "targets named in one session do not open writes in another",
+          "a tool that is not on the known-read list counts as a write and is blocked",
+          "an unknown tool before any target is named is blocked as undeclared",
+          "an unknown tool aimed at a named target is allowed as a write",
+          "the known-read list matches tool names exactly",
+          "the log holds every event across sessions, one entry each, numbered in order",
+          "an allowed write is logged with the allowed verdict"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RequestWrite matches the known-read list exactly",
+        "applied": true,
+        "failedStories": [
+          "the known-read list matches tool names exactly"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RouteCall refuses a provider the user did not name (ProviderNotNamed)",
+        "applied": true,
+        "failedStories": [
+          "a call to a provider the user did not name is refused, even with a valid key",
+          "an impostor that registered first does not change which provider a named call reaches",
+          "a prompt that names no provider refuses every call",
+          "the named-provider check also covers a bare-name call to a single provider",
+          "provider names match exactly: a lookalike provider is not the named one"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RouteCall treats a prompt that names no provider as naming none (fail closed)",
+        "applied": true,
+        "failedStories": [
+          "a prompt that names no provider refuses every call"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RouteCall matches the named provider exactly",
+        "applied": true,
+        "failedStories": [
+          "provider names match exactly: a lookalike provider is not the named one"
         ],
         "caught": true
       },

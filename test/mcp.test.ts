@@ -11,7 +11,7 @@ interface Reply {
 }
 
 import { schemaHash } from "../src/mcp/schema-hash.ts";
-import { parseTargets, writeTarget } from "../src/targets.ts";
+import { parseProviders, parseTargets, writeTarget } from "../src/targets.ts";
 
 const handlers = {
   serverName: "t",
@@ -84,4 +84,18 @@ test("writeTarget maps write tools to namespace:key and leaves other tools alone
   expect(writeTarget("kv_delete", { namespace: "scratch", key: "k" })).toBe("scratch:k");
   expect(writeTarget("kv_put", { key: "k" })).toBe("");
   expect(writeTarget("read_document", { name: "n" })).toBeNull();
+});
+
+test("parseProviders finds the provider the user named, by whole word", () => {
+  const known = ["cloudflare", "cloudflare-mcp"];
+  expect(parseProviders("Use Cloudflare's execute to save v1 under the key k.", known)).toEqual([
+    "cloudflare",
+  ]);
+  expect(parseProviders("Use cloudflare-mcp to save v1.", known)).toEqual(["cloudflare-mcp"]);
+  expect(parseProviders("Use the execute tool.", known)).toEqual([]);
+  expect(parseProviders("Compare cloudflare and cloudflare-mcp.", known)).toEqual([
+    "cloudflare",
+    "cloudflare-mcp",
+  ]);
+  expect(parseProviders("Use xcloudflare or cloudflare_two.", known)).toEqual([]);
 });

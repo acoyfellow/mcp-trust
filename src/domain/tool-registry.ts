@@ -43,6 +43,12 @@ export class AmbiguousTool extends Domain.Rejection("AmbiguousTool", {
   providers: Schema.Array(Schema.String),
 }) {}
 
+export class ProviderNotNamed extends Domain.Rejection("ProviderNotNamed", {
+  tool: Schema.String,
+  provider: Schema.String,
+  named: Schema.Array(Schema.String),
+}) {}
+
 export class Misbinding extends Domain.Rejection("Misbinding", {
   tool: Schema.String,
   requestedServer: Schema.String,
@@ -80,9 +86,10 @@ export class RouteCall extends Domain.Command("RouteCall", {
     tool: Schema.String,
     server: Schema.String,
     provider: Schema.NullOr(Schema.String),
+    named: Schema.NullOr(Schema.Array(Schema.String)),
   },
   events: [CallRouted],
-  rejects: [Misbinding, AmbiguousTool],
+  rejects: [Misbinding, AmbiguousTool, ProviderNotNamed],
 }) {}
 
 const own = <T>(record: Readonly<Record<string, T>>, key: string): T | undefined =>
@@ -165,6 +172,10 @@ export class ToolRegistry extends Domain.Aggregate("ToolRegistry", {
           requestedProvider: cmd.provider,
           boundTo,
         });
+      const routed = (provider: string) =>
+        cmd.named !== null && !cmd.named.includes(provider)
+          ? new ProviderNotNamed({ tool: cmd.tool, provider, named: cmd.named })
+          : [new CallRouted({ tool: cmd.tool, server: cmd.server, provider })];
       if (cmd.provider === null) {
         if (providers.length > 1) return new AmbiguousTool({ tool: cmd.tool, providers });
         const only = providers[0];
@@ -172,13 +183,13 @@ export class ToolRegistry extends Domain.Aggregate("ToolRegistry", {
         const tool = byProvider[only];
         if (tool === undefined || tool.server !== cmd.server)
           return misbinding(tool?.server ?? null);
-        return [new CallRouted({ tool: cmd.tool, server: cmd.server, provider: only })];
+        return routed(only);
       }
       const bound = own(byProvider, cmd.provider);
       if (bound === undefined || bound.server !== cmd.server) {
         return misbinding(bound === undefined ? null : bound.server);
       }
-      return [new CallRouted({ tool: cmd.tool, server: cmd.server, provider: cmd.provider })];
+      return routed(cmd.provider);
     },
   },
   evolve: {

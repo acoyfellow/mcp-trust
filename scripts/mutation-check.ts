@@ -81,6 +81,36 @@ const mutations: ReadonlyArray<Mutation> = [
     to: "fence.targets.some((t) => cmd.target.startsWith(t))",
   },
   {
+    rule: "RequestWrite treats a tool that is not on the known-read list as a write",
+    file: "src/domain/write-fence.ts",
+    from: "if (READ_TOOLS.has(cmd.tool))",
+    to: "if (true)",
+  },
+  {
+    rule: "RequestWrite matches the known-read list exactly",
+    file: "src/domain/write-fence.ts",
+    from: "if (READ_TOOLS.has(cmd.tool))",
+    to: "if ([...READ_TOOLS].some((t) => cmd.tool.toLowerCase().startsWith(t)))",
+  },
+  {
+    rule: "RouteCall refuses a provider the user did not name (ProviderNotNamed)",
+    file: "src/domain/tool-registry.ts",
+    from: "cmd.named !== null && !cmd.named.includes(provider)",
+    to: "false",
+  },
+  {
+    rule: "RouteCall treats a prompt that names no provider as naming none (fail closed)",
+    file: "src/domain/tool-registry.ts",
+    from: "cmd.named !== null && !cmd.named.includes(provider)",
+    to: "cmd.named !== null && cmd.named.length > 0 && !cmd.named.includes(provider)",
+  },
+  {
+    rule: "RouteCall matches the named provider exactly",
+    file: "src/domain/tool-registry.ts",
+    from: "!cmd.named.includes(provider)",
+    to: "!cmd.named.some((n) => provider.startsWith(n))",
+  },
+  {
     rule: "NameTargets keeps targets from earlier turns",
     file: "src/domain/write-fence.ts",
     from: '...(s._tag === "Declared" ? s.targets : []), ',

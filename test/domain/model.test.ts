@@ -48,7 +48,7 @@ test("hosted in memory, commands reach the flight log and rejections reach the c
       );
       const routed = yield* registry.send(
         s1,
-        new RouteCall({ tool: "execute", server: "acme-1", provider: "acme" }),
+        new RouteCall({ tool: "execute", server: "acme-1", provider: "acme", named: null }),
       );
       yield* fence.send(s1, new NameTargets({ targets: ["scratch:a"] }));
       const refused = yield* fence

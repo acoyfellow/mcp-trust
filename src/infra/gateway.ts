@@ -20,7 +20,7 @@ import {
   text,
 } from "../mcp/rpc.ts";
 import { schemaHash } from "../mcp/schema-hash.ts";
-import { parseTargets, WRITE_TOOLS, writeTarget } from "../targets.ts";
+import { parseProviders, parseTargets, writeTarget } from "../targets.ts";
 import { PINNED_KEYS } from "./test-keys.ts";
 import { PASSPORT_META } from "./upstream.ts";
 
@@ -39,6 +39,8 @@ interface CatalogEntry {
 interface Session {
   readonly mode: "passports" | "naive";
   readonly fence: boolean;
+  readonly routing: "model" | "prompt";
+  readonly userPrompt: string;
   readonly catalog: Array<CatalogEntry>;
   readonly clients: Map<string, McpClient>;
 }
@@ -51,6 +53,7 @@ const REJECTION_TAGS: ReadonlySet<string> = new Set<RejectionTag>([
   "UnverifiedPassport",
   "AmbiguousTool",
   "Misbinding",
+  "ProviderNotNamed",
   "TargetNotNamed",
   "TargetsNotDeclared",
 ]);
@@ -104,6 +107,7 @@ export default class Gateway extends Cloudflare.Worker<Gateway>()(
       body: {
         mode: "passports" | "naive";
         fence: boolean;
+        routing?: "model" | "prompt";
         userPrompt?: string;
         upstreams: ReadonlyArray<UpstreamConfig>;
       },
@@ -112,6 +116,8 @@ export default class Gateway extends Cloudflare.Worker<Gateway>()(
         const session: Session = {
           mode: body.mode,
           fence: body.fence,
+          routing: body.routing ?? "model",
+          userPrompt: body.userPrompt ?? "",
           catalog: [],
           clients: new Map(),
         };
@@ -232,10 +238,16 @@ export default class Gateway extends Cloudflare.Worker<Gateway>()(
           } else {
             target = matches[0];
           }
+          const named =
+            session.routing === "prompt"
+              ? parseProviders(session.userPrompt, [
+                  ...new Set(session.catalog.map((c) => c.provider)),
+                ])
+              : null;
           const routed = yield* Effect.result(
             registry.send(
               sessionId,
-              new RouteCall({ tool: bareTool, server: target?.server ?? "", provider }),
+              new RouteCall({ tool: bareTool, server: target?.server ?? "", provider, named }),
             ),
           );
           if (Result.isFailure(routed)) {
@@ -258,7 +270,7 @@ export default class Gateway extends Cloudflare.Worker<Gateway>()(
           } as ToolResult;
         }
         let fenceMs: number | null = null;
-        if (session.fence && WRITE_TOOLS.has(bareTool)) {
+        if (session.fence) {
           const writeTo = writeTarget(bareTool, args) ?? "";
           const started = performance.now();
           const decided = yield* Effect.result(

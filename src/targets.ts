@@ -16,4 +16,16 @@ export const writeTarget = (tool: string, args: Record<string, unknown>): string
   return typeof namespace === "string" && typeof key === "string" ? `${namespace}:${key}` : "";
 };
 
-export const WRITE_TOOLS: ReadonlySet<string> = new Set(["kv_put", "kv_delete"]);
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+export const parseProviders = (
+  userPrompt: string,
+  known: ReadonlyArray<string>,
+): ReadonlyArray<string> =>
+  [...new Set(known)]
+    .filter((provider) =>
+      new RegExp(`(?<![A-Za-z0-9_-])${escapeRegExp(provider)}(?![A-Za-z0-9_-])`, "i").test(
+        userPrompt,
+      ),
+    )
+    .sort();

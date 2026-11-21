@@ -6,6 +6,7 @@ import {
   CallRouted,
   Misbinding,
   NameCollided,
+  ProviderNotNamed,
   RegisterServer,
   RegisterTool,
   RouteCall,
@@ -207,8 +208,12 @@ const malloryRegisterExecute = new RegisterTool({
   schemaHash: SCHEMA,
   signature: malloryPassport("execute"),
 });
-const route = (tool: string, server: string, provider: string | null) =>
-  new RouteCall({ tool, server, provider });
+const route = (
+  tool: string,
+  server: string,
+  provider: string | null,
+  named: ReadonlyArray<string> | null = null,
+) => new RouteCall({ tool, server, provider, named });
 
 test("a same-name tool from a second provider is kept and a collision is recorded", () =>
   run(
@@ -466,3 +471,89 @@ test("verifyPassport returns false for malformed hex and never throws", () => {
   expect(verifyPassport(acme.publicKey, acmePassport("execute"), fields)).toBe(true);
   expect(fromHex("abc")).toBeNull();
 });
+
+const bothProviders = [acmeServer, acmeExecute, malloryServer, malloryExecute] as const;
+
+test("a call to a provider the user did not name is refused, even with a valid key", () =>
+  run(
+    story(
+      Story.given(registry(), ...bothProviders),
+      Story.when(registry(), route("execute", "mallory-1", "mallory", ["acme"])),
+      Story.rejected(
+        new ProviderNotNamed({ tool: "execute", provider: "mallory", named: ["acme"] }),
+      ),
+    ),
+  ));
+
+test("a call to the provider the user named is routed", () =>
+  run(
+    story(
+      Story.given(registry(), ...bothProviders),
+      Story.when(registry(), route("execute", "acme-1", "acme", ["acme"])),
+      Story.then(
+        registry(),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
+      ),
+    ),
+  ));
+
+test("an impostor that registered first does not change which provider a named call reaches", () =>
+  run(
+    story(
+      Story.given(registry(), malloryServer, malloryExecute, acmeServer, acmeExecute),
+      Story.when(registry(), route("execute", "mallory-1", "mallory", ["acme"])),
+      Story.rejected(
+        new ProviderNotNamed({ tool: "execute", provider: "mallory", named: ["acme"] }),
+      ),
+      Story.when(registry(), route("execute", "acme-1", "acme", ["acme"])),
+      Story.then(
+        registry(),
+        new CallRouted({ tool: "execute", server: "acme-1", provider: "acme" }),
+      ),
+    ),
+  ));
+
+test("a prompt that names no provider refuses every call", () =>
+  run(
+    story(
+      Story.given(registry(), ...bothProviders),
+      Story.when(registry(), route("execute", "acme-1", "acme", [])),
+      Story.rejected(new ProviderNotNamed({ tool: "execute", provider: "acme", named: [] })),
+    ),
+  ));
+
+test("the named-provider check also covers a bare-name call to a single provider", () =>
+  run(
+    story(
+      Story.given(registry(), acmeServer, acmeExecute),
+      Story.when(registry(), route("execute", "acme-1", null, ["mallory"])),
+      Story.rejected(
+        new ProviderNotNamed({ tool: "execute", provider: "acme", named: ["mallory"] }),
+      ),
+    ),
+  ));
+
+test("provider names match exactly: a lookalike provider is not the named one", () =>
+  run(
+    story(
+      Story.given(
+        registry(),
+        new ServerRegistered({
+          serverId: "lookalike-1",
+          provider: "acme-mcp",
+          publicKey: mallory.publicKey,
+          url: MALLORY_URL,
+        }),
+        new ToolRegistered({
+          name: "execute",
+          server: "lookalike-1",
+          provider: "acme-mcp",
+          schemaHash: SCHEMA,
+        }),
+      ),
+      Story.when(registry(), route("execute", "lookalike-1", "acme-mcp", ["acme"])),
+      Story.rejected(
+        new ProviderNotNamed({ tool: "execute", provider: "acme-mcp", named: ["acme"] }),
+      ),
+    ),
+  ));

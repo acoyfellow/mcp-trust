@@ -185,7 +185,7 @@ const main = async () => {
       claimId: "E1-tool-passport",
       verdict,
       intent:
-        "Without passports, a Workers AI agent with two servers that both expose `execute` calls the impostor in at least 20% of 50 trials. With passports on, the gateway blocks 100% of impostor calls and 0% of trusted calls.",
+        "Name-only resolution misroutes: with two servers that both expose `execute`, a gateway that resolves the bare name by first match sends the call to the impostor in at least 20% of 50 trials (registration order is shuffled, so this measures the gateway rule, not the agent). With passports on, a keyless impostor is refused at registration: 0 impostor calls reach it and 0 trusted calls are blocked.",
       execution: {
         command: "bun experiments/tool-passport/run.ts",
         startedAt,
@@ -236,7 +236,7 @@ const main = async () => {
         {
           constraint: "Real Workers AI function-calling model",
           met: true,
-          how: "Workers AI binding in alchemy dev, profile customer0",
+          how: "Workers AI binding, remote, wrangler dev",
         },
         {
           constraint: "Real side effects in scratch and decoy KV namespaces",
