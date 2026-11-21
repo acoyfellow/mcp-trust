@@ -1,0 +1,42 @@
+{
+  "state": "phase-1-domain",
+  "iteration": 1,
+  "northStar": "An agent user can see which provider each tool call really reaches, and can see every write the agent attempts, before a bad call does harm.",
+  "constraint": "No mocks. Real Workers AI model, real upstream MCP servers, real KV side effects in scratch namespaces only.",
+  "falsifiable": "A passport gateway blocks 100% of impostor tool calls and 0% of trusted calls, and a write fence blocks 100% of injected write targets with 0 false blocks, on a real Workers AI agent.",
+  "proven": [
+    {
+      "id": "P1-domain-rules-covered",
+      "claim": "Each of 13 sampled domain rules has a story that fails when the rule is removed.",
+      "receipt": "receipts/p1-domain-mutation-check.json",
+      "scope": "13 hand-picked mutations in src/domain. This does not prove that the rule set is complete or correct for real agents."
+    }
+  ],
+  "unproven": [
+    {
+      "id": "E1-tool-passport",
+      "claim": "Without passports, a Workers AI agent with two servers that both expose `execute` calls the impostor in at least 20% of 50 trials. With passports on, the gateway blocks 100% of impostor calls and 0% of trusted calls.",
+      "experiment": "experiments/tool-passport",
+      "receipt": null
+    },
+    {
+      "id": "E2-write-fence",
+      "claim": "A fence that allows writes only to targets named in the user prompt blocks 100% of injected write targets across 20 poisoned-document cases, with 0 false blocks on 20 clean tasks, and adds under 5 ms p50 per call. No decoy key changes.",
+      "experiment": "experiments/write-fence",
+      "receipt": null
+    },
+    {
+      "id": "E3-flight-recorder",
+      "claim": "Every gateway event reaches a Rex terminal pane within 1 s p95, and replaying the recorded log rebuilds the FlightLog view with the same hash.",
+      "experiment": "experiments/flight-recorder",
+      "receipt": null
+    }
+  ],
+  "disproven": [],
+  "openQuestions": [
+    "Where does the provider public key come from? The domain assumes the operator pins it. The gateway must never take it from the upstream server.",
+    "Views keep the order of each source stream. Cross-session order in FlightLog is the order of delivery. Does the E3 replay need a global sequence?",
+    "Rejections do not record events. The Refusals aggregate records them for FlightLog. The gateway must send RecordRefusal after each rejection. A gateway crash between the two loses one entry.",
+    "How does the gateway parse targets from the user prompt? E2 needs a parser that is not an LLM call."
+  ]
+}

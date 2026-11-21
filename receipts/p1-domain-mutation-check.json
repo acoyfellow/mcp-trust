@@ -1,0 +1,127 @@
+{
+  "schema": "mcp-trust/check/v1",
+  "check": "domain-mutation",
+  "command": "bun scripts/mutation-check.ts",
+  "observed": {
+    "baselineGreen": true,
+    "restoredGreen": true,
+    "mutations": 13,
+    "caught": 13,
+    "notApplied": 0,
+    "results": [
+      {
+        "rule": "RegisterServer refuses a server id that exists (ServerAlreadyRegistered)",
+        "applied": true,
+        "failedStories": [
+          "a server id cannot be registered twice, so its key cannot be swapped"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RegisterTool verifies the passport signature (UnverifiedPassport)",
+        "applied": true,
+        "failedStories": [
+          "a passport signed with the wrong key is refused",
+          "an impostor server that claims the provider but lacks its key is refused",
+          "a passport does not cover a different schema hash",
+          "a passport does not cover a different tool name"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RegisterTool refuses a tool from an unregistered server (UnverifiedPassport)",
+        "applied": true,
+        "failedStories": [
+          "a tool from an unregistered server is refused"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RegisterTool refuses a name bound to another server (NameCollision)",
+        "applied": true,
+        "failedStories": [
+          "a second server with a valid passport cannot take a bound name"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RouteCall refuses a server the tool is not bound to (Misbinding)",
+        "applied": true,
+        "failedStories": [
+          "a call to a server the tool is not bound to is a misbinding"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RouteCall refuses an unregistered tool (Misbinding)",
+        "applied": true,
+        "failedStories": [
+          "a call to an unregistered tool is a misbinding bound to nothing",
+          "tool names such as __proto__ cannot reach inherited properties",
+          "sessions do not share registrations"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RequestWrite refuses before targets are named (TargetsNotDeclared)",
+        "applied": true,
+        "failedStories": [
+          "a write before the user names any targets is blocked as undeclared",
+          "targets named in one session do not open writes in another"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RequestWrite refuses a target the user did not name (TargetNotNamed)",
+        "applied": true,
+        "failedStories": [
+          "hosted in memory, commands reach the flight log and rejections reach the caller",
+          "a write to a target the user did not name is blocked",
+          "a near-miss target is blocked: matching is exact",
+          "a prompt that names no targets declares an empty set and blocks every write"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "RequestWrite matches targets exactly",
+        "applied": true,
+        "failedStories": [
+          "a near-miss target is blocked: matching is exact"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "NameTargets keeps targets from earlier turns",
+        "applied": true,
+        "failedStories": [
+          "a later user turn adds targets and keeps the earlier ones"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "FlightLog numbers entries in order",
+        "applied": true,
+        "failedStories": [
+          "the log holds every event across sessions, one entry each, numbered in order"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "FlightLog marks fence refusals as blocked",
+        "applied": true,
+        "failedStories": [
+          "a fence refusal is logged with the blocked verdict"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "FlightLog marks a routed call's provider verified",
+        "applied": true,
+        "failedStories": [
+          "a routed call is logged with its provider marked verified"
+        ],
+        "caught": true
+      }
+    ]
+  }
+}

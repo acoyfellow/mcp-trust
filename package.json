@@ -1,0 +1,25 @@
+{
+  "name": "mcp-trust",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "An experiment notebook: tool passports, write fences and a flight recorder for MCP gateways.",
+  "license": "MIT",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "dependencies": {
+    "@alchemy.run/domain": "2.0.0-beta.87",
+    "@noble/curves": "2.4.0",
+    "alchemy": "2.0.0-beta.87",
+    "effect": "4.1.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@types/bun": "1.4.5",
+    "typescript": "7.0.2"
+  }
+}
