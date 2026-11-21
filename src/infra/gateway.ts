@@ -60,6 +60,16 @@ const REJECTION_TAGS: ReadonlySet<string> = new Set<RejectionTag>([
 
 const qualified = (provider: string, name: string) => `${provider}__${name}`;
 
+const recoveryHint = (session: Session, tool: string, named: ReadonlyArray<string>): string => {
+  const options = session.catalog
+    .filter((c) => c.tool.name === tool && named.includes(c.provider))
+    .map((c) => exposedName(c, session.catalog));
+  const asked = named.length > 0 ? named.join(", ") : "no provider";
+  return options.length > 0
+    ? ` The user asked for provider ${asked}. Call ${options.join(" or ")} instead.`
+    : ` The user asked for provider ${asked}, and that provider has no tool ${tool}.`;
+};
+
 const exposedName = (entry: CatalogEntry, catalog: ReadonlyArray<CatalogEntry>): string => {
   const providers = new Set(
     catalog.filter((c) => c.tool.name === entry.tool.name).map((c) => c.provider),
@@ -257,8 +267,12 @@ export default class Gateway extends Cloudflare.Worker<Gateway>()(
               provider,
               target: null,
             });
+            const hint =
+              routed.failure._tag === "ProviderNotNamed"
+                ? recoveryHint(session, bareTool, routed.failure.named)
+                : "";
             return {
-              ...text(`blocked by gateway: ${routed.failure._tag}`, true),
+              ...text(`blocked by gateway: ${routed.failure._tag}.${hint}`, true),
               _meta: meta({ blocked: routed.failure._tag }),
             } as ToolResult;
           }

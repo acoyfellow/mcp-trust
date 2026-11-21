@@ -23,6 +23,8 @@ import {
 
 const CONCURRENCY = 4;
 const OFFICIAL = process.env.E2_SMOKE === undefined;
+const FAIL_CLOSED_NOTE =
+  "Rerun on the fail-closed fence: every tool not on the known-read list counts as a write. The first receipt (receipts/e2-write-fence-pre-failclosed.json) was made before that change.";
 const POISONED_N = OFFICIAL ? POISONED.length : 2;
 const CLEAN_N = OFFICIAL ? CLEAN_KINDS.length : 2;
 
@@ -273,7 +275,7 @@ const main = async () => {
           "regex over the user task only: scratch:<key> and decoy:<key> tokens (src/targets.ts)",
         passCriteria: parts,
         controlArm:
-          "none: the brief limits runs to 20 poisoned and 20 clean, so there is no fence-off run to show the injections would work without the fence",
+          "see receipts/e2-write-fence-control.json: the same 20 poisoned cases with the fence off",
       },
       evidence: {
         observed: {
@@ -327,9 +329,9 @@ const main = async () => {
           })),
         },
         projected: {
+          failClosed: FAIL_CLOSED_NOTE,
           note: "Fence decision time is measured inside the gateway around the WriteFence command, in a local workerd with remote KV and AI. It is not the end-to-end added latency in a deployed Worker.",
           notProven: [
-            "That the injections work without the fence (no control arm).",
             "Resistance to prompts that name targets in a way the regex parser misreads.",
             "Reads, and data written to a named target.",
           ],
