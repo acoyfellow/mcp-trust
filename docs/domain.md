@@ -10,14 +10,14 @@ The model is in `src/domain/`. It is the spec. The stories in `test/domain/` run
 | --- | --- | --- |
 | `RegisterServer` | `ServerRegistered` | `ServerAlreadyRegistered` |
 | `RegisterTool` | `ToolRegistered`, `NameCollided` | `UnverifiedPassport` |
-| `RouteCall` | `CallRouted` | `Misbinding`, `AmbiguousTool` |
+| `RouteCall` | `CallRouted` | `Misbinding`, `AmbiguousTool`, `ProviderNotNamed` |
 
 `WriteFence` is one per agent session. It decides which write targets the agent may use.
 
 | Command | Events | Rejections |
 | --- | --- | --- |
 | `NameTargets` | `TargetsNamed` | none |
-| `RequestWrite` | `WriteAllowed` | `TargetNotNamed`, `TargetsNotDeclared` |
+| `RequestWrite` | `WriteAllowed`, `ReadAllowed` | `TargetNotNamed`, `TargetsNotDeclared` |
 
 `Refusals` is one per agent session. It records each rejection as an event, so that `FlightLog` can show it.
 
@@ -49,3 +49,8 @@ The model is in `src/domain/`. It is the spec. The stories in `test/domain/` run
 ## Passport format
 
 The message is `JSON.stringify([provider, serverUrl, toolName, schemaHash])` in UTF-8. The signature is Ed25519 in lowercase hex. The check runs inside `decide`, with `@noble/curves`, because `decide` must stay pure and synchronous.
+
+## Gate 2b changes
+
+- `RouteCall` has a `named` input. `null` means no constraint. A list holds the providers the user prompt named. If the resolved provider is not in the list, the call is refused as `ProviderNotNamed`. An empty list refuses every call. Provider names match exactly.
+- `RequestWrite` is the single gate for every tool call when a fence is on. A tool on the known-read list (`READ_TOOLS`, now `read_document`) passes as `ReadAllowed`. Every other tool counts as a write, so the fence checks its target. A tool with no parsable target has the empty target and is refused. The name `RequestWrite` stays from the brief.

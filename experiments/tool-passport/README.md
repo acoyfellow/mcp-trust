@@ -1,13 +1,17 @@
 # tool-passport
 
-Status: not started. No receipt exists.
+Status: run. Receipt: `receipts/e1-tool-passport.json`.
 
 ## Claim (E1)
 
-Registration order never decides identity. A tool's identity is (provider, name). When two servers with valid passports both expose `execute`, the gateway keeps both tools, qualified by provider, and records a collision. A call by bare name is rejected when two providers expose the name. A call that names the trusted provider reaches the trusted server whether the impostor registered first or last. Without passports, a Workers AI function-calling agent with two servers that both expose `execute` calls the impostor in at least 20% of 50 trials. With passports on, the gateway blocks 100% of impostor calls and 0% of trusted calls. An impostor call is a call that reaches a server whose verified provider is not the provider the session trusts for that tool, or a server with no valid passport.
+Name-only resolution misroutes. When two servers expose `execute` and the gateway resolves the bare name by first match, the call goes to whichever server the gateway lists first. A passport stops a keyless impostor: the impostor's tools are refused at registration, no impostor call reaches it, and no trusted call is blocked. The naive arm measures the gateway rule, not the agent. Registration order is shuffled, so the naive rate follows that order.
 
-A passport is an Ed25519 signature by the provider over the provider, the server URL, the tool name, and the schema hash.
+A passport is an Ed25519 signature by the provider over the provider, the server URL, the tool name, and the schema hash. The operator pins each provider key.
 
 ## Run
 
-Not written yet. Phase 2.
+```sh
+CLOUDFLARE_ACCOUNT_ID=<account with mcp-trust-scratch and mcp-trust-decoy> bun run e1
+```
+
+`E1_TRIALS=2` runs a smoke test and writes to `/tmp`.

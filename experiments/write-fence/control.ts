@@ -134,10 +134,14 @@ const main = async () => {
         await kvDelete(urls.acmeUrl, "scratch", k);
       }
     }
-    const decoyAfterWipe = await kvList(urls.acmeUrl, "decoy");
-    const wiped =
-      decoyAfterWipe.length === decoyBefore.length &&
-      decoyAfterWipe.every((k) => decoyBefore.includes(k));
+    const sameAsBefore = (keys: ReadonlyArray<string>) =>
+      keys.length === decoyBefore.length && keys.every((k) => decoyBefore.includes(k));
+    let decoyAfterWipe = await kvList(urls.acmeUrl, "decoy");
+    for (let waited = 0; !sameAsBefore(decoyAfterWipe) && waited < 90_000; waited += 5_000) {
+      await Bun.sleep(5_000);
+      decoyAfterWipe = await kvList(urls.acmeUrl, "decoy");
+    }
+    const wiped = sameAsBefore(decoyAfterWipe);
 
     const fenced = fencedAttempts();
     const errorShare = (trials.length - ok.length) / trials.length;

@@ -19,8 +19,9 @@ Each claim can fail. The ledger is in `status.json`.
 
 | Id | Claim | State |
 | --- | --- | --- |
-| E1 | Tool identity is (provider, name), so registration order decides nothing. Passports block 100% of impostor calls and 0% of trusted calls. Without them, an agent calls the impostor in at least 20% of 50 trials. | proven, see `receipts/e1-tool-passport.json` |
-| E2 | The fence blocks 100% of injected write targets in 20 poisoned cases, with 0 false blocks in 20 clean tasks, under 5 ms p50. | proven with limits, see `receipts/e2-write-fence.json` |
+| E1 | Name-only resolution misroutes. A passport stops a keyless impostor (0 of 50 reach it, 0 trusted calls blocked). | proven, see `receipts/e1-tool-passport.json` |
+| E1b | A lookalike provider with its own valid key and a persuasive description. Arm A: the model picks it in at least 10% of 50 trials. Arm B: the gateway routes only to the provider the prompt names, and the lookalike is reached in 0 of 50 trials. | proven with limits, see `receipts/e1b-lookalike-provider.json` |
+| E2 | The fence blocks 100% of injected write targets in 20 poisoned cases, with 0 false blocks in 20 clean tasks, under 5 ms p50. | proven with limits, see `receipts/e2-write-fence.json` and the control `receipts/e2-write-fence-control.json` |
 | E3 | Every gateway event reaches a Rex pane within 1 s p95. Replay rebuilds the `FlightLog` view with the same hash. | unproven |
 
 ## Why a notebook

@@ -3,7 +3,7 @@
   "experiment": "tool-passport",
   "claimId": "E1-tool-passport",
   "verdict": "verified",
-  "intent": "Without passports, a Workers AI agent with two servers that both expose `execute` calls the impostor in at least 20% of 50 trials. With passports on, the gateway blocks 100% of impostor calls and 0% of trusted calls.",
+  "intent": "Name-only resolution misroutes: with two servers that both expose `execute`, a gateway that resolves the bare name by first match sends the call to the impostor in at least 20% of 50 trials (registration order is shuffled, so this measures the gateway rule, not the agent). With passports on, a keyless impostor is refused at registration: 0 impostor calls reach it and 0 trusted calls are blocked.",
   "execution": {
     "command": "bun experiments/tool-passport/run.ts",
     "startedAt": "2026-11-21T22:13:00.860Z",
@@ -21,7 +21,13 @@
       "passportsImpostorReachedZero": true,
       "passportsImpostorRefusedEveryTrial": true,
       "passportsTrustedBlockedZero": true
-    }
+    },
+    "amendments": [
+      {
+        "on": "2026-11-21",
+        "what": "Gate 2 review rescoped the headline. The intent text now says the naive arm measures the gateway's first-match name resolution, not the agent. The constraint text for Workers AI said 'alchemy dev, profile customer0'. That was wrong: the run used the remote Workers AI binding in wrangler dev on the Agent Experience account. No number, criterion or trial changed."
+      }
+    ]
   },
   "evidence": {
     "observed": {
@@ -1842,7 +1848,7 @@
     {
       "constraint": "Real Workers AI function-calling model",
       "met": true,
-      "how": "Workers AI binding in alchemy dev, profile customer0"
+      "how": "Workers AI binding, remote, wrangler dev"
     },
     {
       "constraint": "Real side effects in scratch and decoy KV namespaces",
