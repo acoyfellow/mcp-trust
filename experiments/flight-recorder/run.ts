@@ -1,5 +1,4 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { connect } from "../../src/mcp/rpc.ts";
 import type { FlightRow } from "../../src/recorder/format.ts";
 import { closePane, paneCapture, startPane } from "../../src/recorder/pane.ts";
 import { hashState, readRecords, replay } from "../../src/recorder/replay.ts";
@@ -13,50 +12,14 @@ import {
   type Receipt,
   writeReceipt,
 } from "../lib/common.ts";
-import { repoRoot, type Urls, withStack } from "../lib/stack.ts";
+import { repoRoot, withStack } from "../lib/stack.ts";
+import { driveSession, seqsIn, sleep } from "./lib.ts";
 
 const SESSIONS = Number(process.env.E3_SESSIONS ?? 20);
 const OFFICIAL = SESSIONS === 20;
 const CONCURRENCY = 4;
 const SEED = 20261123;
 const RUN = `e3-${Date.now().toString(36)}`;
-
-const sleep = (ms: number) => Bun.sleep(ms);
-
-const driveSession = async (urls: Urls, i: number, rng: () => number) => {
-  const id = `${RUN}-s${i}`;
-  const doc = `${RUN}-d${i}`;
-  const key = `e3/${RUN}/${i}`;
-  const think = () => sleep(60 + Math.floor(rng() * 200));
-  await post(`${urls.gatewayUrl}/admin/sessions/${id}`, {
-    mode: "passports",
-    fence: true,
-    routing: "prompt",
-    userPrompt: `Ask acme to read the document ${doc} and save a summary to scratch:${key}. Use Cloudflare's execute to save v${i}.`,
-    upstreams: [
-      { id: "acme-1", url: `${urls.acmeUrl}/mcp`, provider: "acme" },
-      { id: "cloudflare-1", url: `${urls.acmeUrl}/mcp/cloudflare`, provider: "cloudflare" },
-      { id: "lookalike-1", url: `${urls.impostorUrl}/mcp/lookalike`, provider: "cloudflare-mcp" },
-    ],
-  });
-  const client = await connect(`${urls.gatewayUrl}/mcp/${id}`);
-  await client.listTools();
-  const calls: Array<[string, Record<string, string>]> = [
-    ["read_document", { name: doc }],
-    ["kv_put", { namespace: "scratch", key, value: "summary" }],
-    ["kv_put", { namespace: "decoy", key, value: "injected" }],
-    ["cloudflare__execute", { key, value: `v${i}` }],
-    ["cloudflare-mcp__execute", { key, value: `v${i}` }],
-    ["kv_delete", { namespace: "scratch", key }],
-  ];
-  for (const [tool, args] of calls) {
-    await think();
-    await client.callTool(tool, args);
-  }
-};
-
-const seqsIn = (text: string): number[] =>
-  [...text.matchAll(/^#(\d+) /gm)].map((m) => Number(m[1]));
 
 const main = async () => {
   const startedAt = new Date().toISOString();
@@ -96,7 +59,7 @@ const main = async () => {
       await pool(
         CONCURRENCY,
         Array.from({ length: SESSIONS }, (_, i) => i),
-        (i) => driveSession(urls, i, rng),
+        (i) => driveSession(urls, RUN, i, rng),
       );
       const trafficMs = Date.now() - trafficStarted;
 

@@ -18,6 +18,8 @@
     "e1b": "bun experiments/lookalike-provider/run.ts",
     "e2": "bun experiments/write-fence/run.ts",
     "e3": "bun experiments/flight-recorder/run.ts",
+    "e3:reconnect": "bun experiments/flight-recorder/reconnect.ts",
+    "demo": "bun experiments/demo/run.ts",
     "e2:control": "bun experiments/write-fence/control.ts",
     "mutation": "bun scripts/mutation-check.ts"
   },

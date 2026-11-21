@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { formatLine, type Recorded, sourceOf } from "../src/recorder/format.ts";
+import { colorize, formatLine, type Recorded, sourceOf } from "../src/recorder/format.ts";
 import { hashState, replay } from "../src/recorder/replay.ts";
 
 const record = (
@@ -101,4 +101,13 @@ test("formatLine prints time, session, tool, provider with its verification, fen
 test("sourceOf refuses an event it does not know", () => {
   expect(() => sourceOf("Unknown")).toThrow();
   expect(() => sourceOf("__proto__")).toThrow();
+});
+
+test("colorize paints refusals red and allowed or routed lines green, and nothing else", () => {
+  const rows = replay(recording).entries;
+  const line = (i: number) => formatLine(rows[i] as never);
+  expect(colorize(rows[4] as never, line(4), true)).toBe(`\u001b[31m${line(4)}\u001b[0m`);
+  expect(colorize(rows[3] as never, line(3), true)).toBe(`\u001b[32m${line(3)}\u001b[0m`);
+  expect(colorize(rows[0] as never, line(0), true)).toBe(line(0));
+  expect(colorize(rows[4] as never, line(4), false)).toBe(line(4));
 });
