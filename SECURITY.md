@@ -18,3 +18,7 @@ Open a private report with the repository owner. Do not post exploit details in 
 - A passport proves that a provider signed a tool description. It does not prove that the tool is safe.
 - The write fence checks write targets. It does not stop reads, and it does not stop an agent from writing wrong data to a target the user named.
 - The provider public key must come from the operator, never from the upstream server. If a server supplies its own key, the passport check proves nothing.
+
+## Local admin routes
+
+`Acme` and `Gateway` expose `/admin/*` routes. They seed, read and delete KV keys, and they read the flight log. They have no access control. They exist for local experiment runs. Remove them before any deploy. Never bind them to a public URL.

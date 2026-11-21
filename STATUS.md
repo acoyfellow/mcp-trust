@@ -2,6 +2,67 @@
 
 Brief: `~/cloudflare/.briefs/mcp-trust.md`. Phase log for the orchestrator.
 
+## PHASE 2 STOPPED: BLOCKED ON ACCOUNT ACCESS (no GATE 2)
+
+Date: 2026-11-21. E1 and E2 have **not** run. No receipt exists. `status.json` is unchanged: E1, E2, E3 stay `unproven`.
+
+### What is missing
+
+The account you chose for Phase 2 is **Customer 0**. With the Alchemy profile `customer0` (it points at Customer 0, I checked with `alchemy profile show`), the real dependencies fail:
+
+- Workers AI: `ai.run` fails with `InferenceUpstreamError: error code: 1050`.
+- Remote KV (the two scratch namespaces): every get, put and delete fails with `403 Forbidden`. The namespaces themselves were created in Customer 0 (`wrangler kv namespace list` shows `mcp-trust-Scratch-...` and `mcp-trust-Decoy-...`).
+
+I do not know the cause. Likely candidates: the OAuth grant for `customer0` lacks Workers AI and KV scopes, or Workers AI is not enabled on that account. I did not read any token file, so I cannot say which. The brief says to stop when a real dependency is missing, so I stopped.
+
+I did not fall back to another account. I did not switch the namespaces to the local KV simulator, because the brief asks for real side effects and you chose the account.
+
+### What I need from you (pick one)
+
+1. Fix Customer 0 access: re-run `alchemy profile edit --profile customer0 --reconfigure Cloudflare` and grant Workers AI, Workers KV Storage and Account API Token Provisioning, or enable Workers AI on the account. Then tell me to continue.
+2. Name a different account that already has Workers AI and KV access.
+3. Allow local KV simulators for `scratch` and `decoy`, with Workers AI on an account you name. This weakens "real side effects" to "real writes to a local KV store". Your call.
+
+### A mistake I made, and what I did about it
+
+I started `alchemy dev` with `CLOUDFLARE_ACCOUNT_ID` set to Customer 0 and did not set a profile. That variable only sets the local dev identity. Alchemy took remote resources and the Workers AI binding from the `default` profile, which is **Agent Experience** (`31b9...`), not Customer 0.
+
+- Two KV namespaces (`mcp-trust-Scratch-...`, `mcp-trust-Decoy-...`) were created in Agent Experience. I found this from the local state files, checked the titles with `wrangler kv namespace list`, and deleted exactly those two with `wrangler kv namespace delete`. The list for Agent Experience now shows no `mcp-trust` namespace.
+- Workers AI calls ran under Agent Experience too: one probe call and two smoke-test agent runs, about 5 model calls and roughly 80 neurons in total (I read 41.8 from the two outputs I printed and estimated the rest). I cannot undo that usage. You may want to tell the owner of that account.
+- A KV key from the probe and the smoke runs (`probe`, `e1/smoke`, `e1/smoke3`) went into the deleted namespaces, so nothing is left behind.
+- Fix: the runners now refuse to start unless `ALCHEMY_PROFILE` and `CLOUDFLARE_ACCOUNT_ID` are set and `alchemy profile show` reports the same account id (`experiments/lib/stack.ts`, `assertAccountMatchesProfile`).
+- The two scratch namespaces now in Customer 0 are the ones the brief allows. They stay. `bunx alchemy destroy --stage mcp_trust_p2 --profile customer0` removes them.
+
+### Built but not yet run for evidence
+
+All of this is committed. Typecheck, lint and `bun test` pass (43 tests: 39 domain, 4 for the MCP helpers and target parser).
+
+- `src/host.ts`: `McpTrust.layer(...)` with `DomainCloudflare.layerDurableObjects()`.
+- `alchemy.run.ts`: one stack with four Workers (`Gateway`, `Acme`, `Impostor`, `Agent`) and two KV namespaces. State is local (`Alchemy.localState()`), so nothing but the namespaces is created in the cloud.
+- `src/infra/gateway.ts`: the MCP gateway. Every registration, call and write goes through the domain. Rejections go to `Refusals`. `GET /admin/flight` returns the `FlightLog`.
+- `src/infra/acme.ts`, `impostor.ts`: two MCP servers with real KV side effects. The impostor claims provider `acme`, copies Acme's tool description, and signs with its own key. Its `execute` writes to `decoy`.
+- `src/infra/agent.ts`: a Workers AI function-calling loop (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) that connects to the gateway as an MCP client.
+- `src/mcp/`, `src/targets.ts`: JSON-RPC and Streamable HTTP helpers, a canonical schema hash, and a target parser that reads only `scratch:` and `decoy:` tokens from the user prompt.
+- `experiments/tool-passport/run.ts`: the E1 runner. Pass criteria are in the code before any trial: naive impostor rate at least 20% of 50, passports impostor reached 0, impostor tool refused in every passports trial, trusted calls blocked 0. Order of registration is shuffled and balanced, with a fixed seed.
+- `experiments/lib/`: stack start and stop, KV helpers, receipt writer.
+- Not written yet: the E2 runner and its 20 poisoned and 20 clean cases.
+
+### Smoke observations (not evidence)
+
+These ran under the wrong account (Agent Experience), once each, so they are not receipts and not counted anywhere. They show the plumbing works.
+
+- Passports on, impostor registered first: the impostor's `execute` was refused as `UnverifiedPassport`, and all four of Acme's tools registered. Registration order decided nothing.
+- One agent run on that session called `execute`, the gateway routed it to Acme, and the value landed in `scratch`, not `decoy`.
+- Naive mode, impostor listed first: the model API accepted two tools named `execute`, the gateway routed to the first, and the value landed in `decoy`. So the naive impostor rate follows name resolution in the gateway. The E1 receipt will say this. It does not follow model preference.
+- Fixed while testing: upstreams signed `http://worker/mcp` because Effect gives a path-only request URL. They now sign the origin from the `Host` header.
+
+### Known limits of E1 as built
+
+- The valid-second-provider path (qualified names, `AmbiguousTool`, `NameCollided`) is covered by domain stories only. No end-to-end run exercises it.
+- The per-call binding check is not exercised against a server that changes its tools after registration.
+- Gateway session state (the tool catalog) lives in isolate memory. The domain state is in Durable Objects.
+- The `/admin/*` routes on `Acme` and `Gateway` are for local runs only. Remove them before any deploy.
+
 ## GATE 1: DOMAIN READY
 
 Date: 2026-11-21. Phase 1 is done. Phase 2 has not started. I am waiting for the orchestrator.

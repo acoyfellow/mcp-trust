@@ -1,5 +1,5 @@
 {
-  "state": "phase-2-gateway",
+  "state": "phase-2-blocked-on-account-access",
   "iteration": 1,
   "northStar": "An agent user can see which provider each tool call really reaches, and can see every write the agent attempts, before a bad call does harm.",
   "constraint": "No mocks. Real Workers AI model, real upstream MCP servers, real KV side effects in scratch namespaces only.",
@@ -38,6 +38,7 @@
     "Views keep the order of each source stream. Cross-session order in FlightLog is the order of delivery. Does the E3 replay need a global sequence?",
     "Rejections do not record events. The Refusals aggregate records them for FlightLog. The gateway must send RecordRefusal after each rejection. A gateway crash between the two loses one entry.",
     "How does the gateway parse targets from the user prompt? E2 needs a parser that is not an LLM call.",
-    "How does the session say which provider it trusts for a tool? E1 needs this to define an impostor call. The gateway must read it from operator config, never from the agent or a tool result."
+    "How does the session say which provider it trusts for a tool? E1 needs this to define an impostor call. The gateway must read it from operator config, never from the agent or a tool result.",
+    "Customer 0 returns Workers AI error 1050 and KV 403 through the customer0 Alchemy profile. Which scopes or entitlements are missing? See STATUS.md."
   ]
 }
