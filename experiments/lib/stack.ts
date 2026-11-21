@@ -81,14 +81,15 @@ const writeConfigs = (ns: Namespaces) => {
   }
 };
 
-const killRepoWorkerd = async () => {
-  const listed = await capture(["pgrep", "-f", `${repoRoot}/node_modules/@cloudflare/workerd`]);
+const killRepoProcesses = async (signal: NodeJS.Signals) => {
+  const listed = await capture(["pgrep", "-f", `${repoRoot}/node_modules`]);
   for (const pid of listed
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => /^\d+$/.test(l))) {
+    if (Number(pid) === process.pid) continue;
     try {
-      process.kill(Number(pid), "SIGTERM");
+      process.kill(Number(pid), signal);
     } catch {}
   }
 };
@@ -101,7 +102,14 @@ const waitFor = async (what: string, ready: () => Promise<boolean>, ms = 120_000
   }
 };
 
-export const withStack = async <T>(fn: (urls: Urls) => Promise<T>): Promise<T> => {
+export interface StackOptions {
+  readonly stopWaitMs?: number;
+}
+
+export const withStack = async <T>(
+  fn: (urls: Urls) => Promise<T>,
+  options: StackOptions = {},
+): Promise<T> => {
   const ns = await findNamespaces();
   if (process.env.MCP_TRUST_URLS) return fn(JSON.parse(process.env.MCP_TRUST_URLS) as Urls);
   writeConfigs(ns);
@@ -126,6 +134,8 @@ export const withStack = async <T>(fn: (urls: Urls) => Promise<T>): Promise<T> =
         String(PORTS[name] + 500),
         "--ip",
         "127.0.0.1",
+        "--persist-to",
+        `${devDir}/state-${name}`,
       ]);
     }
     launch("gateway", [
@@ -156,8 +166,13 @@ export const withStack = async <T>(fn: (urls: Urls) => Promise<T>): Promise<T> =
     });
   } finally {
     for (const proc of procs) proc.kill("SIGTERM");
-    await Promise.race([Promise.all(procs.map((p) => p.exited)), Bun.sleep(10_000)]);
+    await Promise.race([
+      Promise.all(procs.map((p) => p.exited)),
+      Bun.sleep(options.stopWaitMs ?? 10_000),
+    ]);
+    await killRepoProcesses("SIGTERM");
+    await Bun.sleep(300);
+    await killRepoProcesses("SIGKILL");
     for (const proc of procs) proc.kill("SIGKILL");
-    await killRepoWorkerd();
   }
 };

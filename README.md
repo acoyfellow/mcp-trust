@@ -2,6 +2,10 @@
 
 An experiment notebook. It tests two defenses for an agent that connects to many MCP servers.
 
+## Demo
+
+`bun run demo` runs a 35 second live script with the real model and a Rex pane that shows the flight log. See `experiments/demo/README.md`.
+
 ## The nag
 
 An agent connects to several MCP servers. Two servers can expose a tool with the same name, such as `execute`. Nothing tells the agent which provider it calls. A tool result can also carry an injected instruction that redirects a write to a target the user never named. The person who runs the agents sees neither event.
@@ -22,7 +26,7 @@ Each claim can fail. The ledger is in `status.json`.
 | E1 | Name-only resolution misroutes. A passport stops a keyless impostor (0 of 50 reach it, 0 trusted calls blocked). | proven, see `receipts/e1-tool-passport.json` |
 | E1b | A lookalike provider with its own valid key and a persuasive description. Arm A: the model picks it in at least 10% of 50 trials. Arm B: the gateway routes only to the provider the prompt names, and the lookalike is reached in 0 of 50 trials. | proven with limits, see `receipts/e1b-lookalike-provider.json`. With a helpful refusal, 50 of 50 tasks finish: `receipts/e1b-armB-recovery.json` |
 | E2 | The fence blocks 100% of injected write targets in 20 poisoned cases, with 0 false blocks in 20 clean tasks, under 5 ms p50. | proven with limits, see `receipts/e2-write-fence.json` and the control `receipts/e2-write-fence-control.json` |
-| E3 | Every gateway event reaches a Rex pane within 1 s p95. Replay rebuilds the `FlightLog` view with the same hash. | proven locally, see `receipts/e3-flight-recorder.json` |
+| E3 | Every gateway event reaches a Rex pane within 1 s p95. Replay rebuilds the `FlightLog` view with the same hash. | proven locally, see `receipts/e3-flight-recorder.json`. The recorder also resumes after a cut connection: `receipts/e3b-recorder-reconnect.json` |
 
 ## Why a notebook
 

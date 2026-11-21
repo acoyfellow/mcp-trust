@@ -1,5 +1,5 @@
 {
-  "state": "phase-3-gate-3",
+  "state": "phase-3-gate-4-demo",
   "iteration": 1,
   "northStar": "An agent user can see which provider each tool call really reaches, and can see every write the agent attempts, before a bad call does harm.",
   "constraint": "No mocks. Real Workers AI model, real upstream MCP servers, real KV side effects in scratch namespaces only.",
@@ -45,15 +45,21 @@
       "id": "E3-flight-recorder",
       "claim": "Every gateway event reaches a Rex terminal pane within 1 s p95, and replaying the recorded log rebuilds the FlightLog view with the same hash.",
       "receipt": "receipts/e3-flight-recorder.json",
-      "scope": "460 events from 20 sessions, 4 at a time, real MCP calls through the gateway, no model. Each event seen in the pane exactly once. Pane latency p50 123 ms, p95 276 ms, max 348 ms (upper bound: it includes the rex capture poll, p50 22 ms per call). Replay with FlightLog.evolve over the recorded raw events gives the live hash. Dropping one record and swapping two records both change the hash. Local run on one machine and one clock. The recorder reads the gateway with a long poll, not a push stream. Replay runs the same fold, so it proves no loss, duplication or reordering, not that the fold is right."
+      "scope": "Rerun after the gateway capped its events page at 20: 460 events from 20 sessions, 4 at a time, real MCP calls through the gateway, no model. Each event seen in the pane exactly once. Pane latency p50 165 ms, p95 327 ms, max 520 ms (upper bound: it includes the rex capture poll, p50 22 ms per call). The first run (receipts/e3-flight-recorder-before-page-cap.json) gave p95 276 ms. Latency rises with the size of the local log, because each listed event carries the full view state. Replay with FlightLog.evolve over the recorded raw events gives the live hash. Dropping one record and swapping two records both change the hash. Local run, one machine, one clock. Long poll, not a push stream. Replay runs the same fold, so it proves no loss, duplication or reordering, not that the fold is right."
+    },
+    {
+      "id": "E3b-recorder-reconnect",
+      "claim": "When the connection between the recorder and the gateway is cut mid-run, the recorder resumes from its cursor with 0 events lost and 0 duplicated.",
+      "receipt": "receipts/e3b-recorder-reconnect.json",
+      "scope": "276 events, 12 sessions, two 2.5 s cuts of a local proxy between the pane's recorder and the gateway. 114 events were created during the cuts. Recording: 0 missing, 0 duplicated, in order. Pane: each event exactly once. Replay hash equals the live hash. Events created during a cut reached the pane after the proxy came back (p50 1.6 s, max 2.7 s after creation, so bounded by the cut). The recorder process stayed alive. A killed and restarted recorder is not tested and the CLI has no resume flag. The first two smoke runs found a real fault: the gateway hung on a backlog of about 100 events with a page of 200. The page is now capped at 20."
     }
   ],
   "unproven": [],
   "disproven": [],
   "openQuestions": [
-    "E3 reads the flight log through an unauthenticated /admin/flight/events long poll (FlightLog.list every 50 ms inside the gateway). Deploy needs Access in front of it and a decision on the Durable Object request cost, or a push stream with FlightLog.events.",
-    "E3 does not test a recorder that loses its connection and reconnects. The cursor makes resume possible. Run that test before anyone relies on the recorder?",
-    "Receipts E1 to E3 all ran locally. Which of them should the orchestrator rerun against the deployed gateway after Access is in place?"
+    "The flight log endpoint costs time in proportion to log size: each listed event carries the full view state. At about 4,000 rows a page of 20 takes about 185 ms, and a page of 80 never returned. Before deploy, change the FlightLog design (no per-event state, or a ring of recent rows) or read it with FlightLog.events instead of list?",
+    "Deploy: /admin/* stays and goes behind Access (your answer). Access service tokens for the recorder pane are still to decide.",
+    "A killed and restarted recorder has no resume flag. Add `--resume` that reads the cursor from the recording file?"
   ],
   "findings": [
     {

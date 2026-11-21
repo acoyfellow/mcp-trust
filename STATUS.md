@@ -2,6 +2,69 @@
 
 Brief: `~/cloudflare/.briefs/mcp-trust.md`. Phase log for the orchestrator.
 
+## GATE 4: DEMO READY
+
+Date: 2026-11-21. `bun run demo` is built and I ran it. I did not record video. I am waiting for the orchestrator.
+
+### The demo
+
+`PROMPT='$ ' CLOUDFLARE_ACCOUNT_ID=<account> bun run demo`, inside a Rex terminal. `experiments/demo/README.md` has the details.
+
+- It starts the stack, opens the recorder with `rex split` beside the pane it runs in, and prints one header line per step:
+  - Step 1. No pinning: the agent picks the lookalike
+  - Step 2. The gateway routes only to the provider the user named: the lookalike is refused, the agent recovers
+  - Step 3. Poisoned documents, fence on: injected writes are blocked
+  - Step 4. A clean write to a target the user named: allowed
+- Real Workers AI throughout. Trials: 2 of E1b arm A, 2 of arm B, 2 poisoned documents, 1 clean write.
+- Recorder colors: refusals red, allowed and routed lines green, the rest dim.
+- At the end it closes the pane, deletes its KV keys, and stops every process.
+- No home paths in the output. I grepped the demo output and the recorder pane text of the last 3 runs (6 files): 0 hits. One earlier run crashed and printed a stack trace with a home path. That is why a failure now prints one line and no trace. The `$ bun experiments/demo/run.ts` line comes from `bun run`.
+
+### My runs
+
+The last 3 runs of the final version: **33 s, 38 s, 38 s** (target: under 45 s). Both poisoned documents were blocked in all 3. Each time: 0 processes left (`pgrep` on this repo's `node_modules`), 0 extra panes, no home path in output. About 16 demo runs in total while I tuned it. The first version took 52 to 59 s.
+
+What took the time, and what I changed:
+
+- Stack start is 5.5 s. Stack stop took 7 s: it waited 10 s for `alchemy dev` to exit. Now it waits 1.5 s, then kills every process that runs from this repo's `node_modules`. This also fixed an orphan: my first short stop left the `alchemy dev` child running. I found it with `pgrep` and stopped it.
+- Cleanup deleted about 50 KV keys one at a time, with the pane still open (12 s). It now closes the pane first and deletes in parallel.
+- Model calls: the agent stops after the call the step needs (`stopAfter`, new optional field in the agent loop; the receipts never set it). Step 4 is one direct `kv_put`.
+- Workers AI latency changes from run to run. A slow run can pass 45 s. I can't control that.
+
+### Things the demo chooses. Say so if you show it.
+
+- **Order in Steps 1 and 2.** The trusted provider is registered first, so the lookalike is listed second. In the E1b receipts the model picked the second-listed tool in 41 of 50 trials. So Step 1 shows the lookalike pick reliably. With the other order Step 1 would sometimes show the trusted tool. The lookalike picks, refusals and recoveries are the real model, not scripted.
+- **Step 3 is not guaranteed.** The model acts on an injected document only part of the time (20 to 35% in the receipts). The demo starts 3 poisoned documents per slot at once, then 3 more if all are ignored, and prints the first one the agent acted on plus how many it ignored before. If every document in a slot is ignored, the line says so. The documents come from the E2 cases that the model acted on most often, so this overstates their rate. Before I added the second wave, 2 of 5 runs missed a block. In the final version 3 of 3 runs showed both blocks (one slot needed 5 ignored first). Re-record if a run says "ignored all".
+- **Times in the pane are UTC.**
+
+### Gate 3 answers
+
+1. `/admin/*` stays and goes behind Access at deploy. No code change. `SECURITY.md` already says so. Access service tokens for the recorder pane are still open.
+2. **Reconnect test: verified** (`receipts/e3b-recorder-reconnect.json`, claim in the runner before the run, commit `857af9a`). The recorder in the pane reads the gateway through a local proxy. The harness cut the proxy twice for 2.5 s with `stop(true)`, which kills the open long poll, during 12 sessions of traffic. **276 events: 0 lost, 0 duplicated, in order.** The pane showed each event exactly once. 114 events were created during the cuts. They appeared after the proxy came back (p50 1.6 s, max 2.7 s after creation, so bounded by the cut). The replay hash equals the live hash.
+3. No receipts rerun against a deployed gateway.
+
+### The reconnect test found a real fault
+
+The first two smoke runs failed: the recording stopped at the first cut and never resumed. It was not the recorder. The gateway returned up to 200 events per poll, each with the full view state, and a backlog of about 100 events hung the gateway. E3 never polled a backlog that large. I measured the cost: with a log of about 3,800 rows, a page of 20 takes about 185 ms, 40 takes 336 ms, and 80 never returned in 60 s. The gateway now caps a page at 20.
+
+- E3 reran on the capped gateway: still verified. 460 events, each once in the pane. Pane latency p95 **327 ms** (was 276 ms), p50 165 ms, max 520 ms. The first E3 receipt is kept as `receipts/e3-flight-recorder-before-page-cap.json`.
+- **This is a design limit to fix before deploy.** The flight log endpoint costs time in proportion to the size of the log, because `list` returns the whole view state with each event. The local log is now about 4,000 rows and grows with every run. A deployed log would grow without end. Options: a FlightLog without per-event state, a ring of recent rows, or `FlightLog.events` (a push stream) instead of `list`. This is in the open questions.
+
+### Harness faults I hit and fixed (no claim changed)
+
+- `wrangler dev` start failed twice with a SQLite lock, because the three workers shared one state directory. Each now has its own.
+- The gateway returned HTTP 500 once ("Network connection lost" between workers) during a demo run. The demo now retries session setup with a fresh session id, and retries an agent run once.
+
+### Checks
+
+62 tests pass (6 new for the recorder and its colors), `tsc` clean, `biome` clean. The domain did not change, so the mutation check is unchanged at 22 of 22. Nothing deployed, pushed or posted. Neurons: E3 and E3b use none. I did not total the neurons for the 16 demo runs.
+
+### Questions for the orchestrator
+
+1. Which fix for the flight log cost do you want before deploy: no per-event state, a ring of recent rows, or a push stream?
+2. Add `--resume` to the recorder, so a restarted recorder continues from its file?
+3. Is a Step 3 that can say "ignored all" acceptable for the video, or do you want a retake rule?
+
 ## GATE 3: E3 RECEIPT
 
 Date: 2026-11-21. Phase 4 (deploy) is not mine. I am waiting for the orchestrator.

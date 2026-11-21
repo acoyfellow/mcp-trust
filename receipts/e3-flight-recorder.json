@@ -6,9 +6,9 @@
   "intent": "Every gateway event reaches a Rex terminal pane within 1 s p95, and replaying the recorded log rebuilds the FlightLog view exactly (same hash). The pane runs the bun recorder opened with rex split. One line per event: time, session, tool, provider (verified or not), the fence verdict, and the rejection name if there is one.",
   "execution": {
     "command": "bun experiments/flight-recorder/run.ts",
-    "startedAt": "2026-11-21T22:41:52.398Z",
-    "endedAt": "2026-11-21T22:42:17.773Z",
-    "commit": "aee5d048caee83105837516de9948d40588cba4e",
+    "startedAt": "2026-11-21T22:59:01.789Z",
+    "endedAt": "2026-11-21T22:59:30.041Z",
+    "commit": "1a0b798923a78b2ba3afe966451892cc80666bee",
     "dirty": false,
     "sessions": 20,
     "concurrency": 4,
@@ -26,9 +26,15 @@
       "swappingTwoRecordsChangesTheHash": true
     },
     "pane": {
-      "block": "block:01a20046-077d-73c0-84f2-2ab39b0fe0c4",
+      "block": "block:01a20055-bd6c-77db-9ac1-50467db331a1",
       "recordingTo": ".dev/<run>.jsonl"
-    }
+    },
+    "amendments": [
+      {
+        "on": "2026-11-21",
+        "what": "Rerun after the gateway capped its events page at 20 (receipts/e3-flight-recorder-before-page-cap.json is the first run, with a page of up to 200). The first run never polled a backlog larger than a few events, so it did not show that a large page hangs. Latency is higher in this run (p95 327 ms against 276 ms) because the local log is larger: each listed event carries the full view state. The starting cursor was 3963 against 2951."
+      }
+    ]
   },
   "evidence": {
     "observed": {
@@ -43,24 +49,24 @@
         "ToolRegistered": 120,
         "WriteAllowed": 40
       },
-      "startingCursor": 2951,
-      "trafficMs": 16809,
+      "startingCursor": 3963,
+      "trafficMs": 19494,
       "paneLatencyMs": {
         "n": 460,
-        "p50": 123,
-        "p95": 276,
-        "p99": 345,
-        "max": 348,
-        "min": 34
+        "p50": 165,
+        "p95": 327,
+        "p99": 515,
+        "max": 520,
+        "min": 47
       },
       "wireLatencyMs": {
         "n": 460,
-        "p50": 105,
-        "p95": 262,
-        "max": 333
+        "p50": 150,
+        "p95": 299,
+        "max": 515
       },
       "captureCallMs": {
-        "n": 504,
+        "n": 589,
         "p50": 22,
         "p95": 24
       },
@@ -68,26 +74,26 @@
         "missing": 0,
         "duplicated": 0
       },
-      "liveHash": "eb3c8b7e10404703b4e45d936035c91a3b2acf0a0b59dcf6dd66ea30bd73829d",
-      "replayHash": "eb3c8b7e10404703b4e45d936035c91a3b2acf0a0b59dcf6dd66ea30bd73829d",
+      "liveHash": "d8400bc46a87b2feeb0f6480a99d9119125b794d4e0110a7b0ad67c018d0560e",
+      "replayHash": "d8400bc46a87b2feeb0f6480a99d9119125b794d4e0110a7b0ad67c018d0560e",
       "negativeControls": {
-        "droppedOneRecordHash": "f826cca11a05ad0754883e891fb3a2ac9df67391be2f257a18f5d2fd40e418e0",
-        "swappedTwoRecordsHash": "f303d3fca74563ef15cd7961e63836f29d32ce31e0e951d5e7c744b933543c60"
+        "droppedOneRecordHash": "196865bd6faff093535dec3c56556150add3dc849a6b39a90ca754eac922fbd8",
+        "swappedTwoRecordsHash": "70020540bfeb5f58f6f4d3ec6ae396e8cb22cc85c9c62593bffee22d6cd184aa"
       },
       "scratchKeysLeft": [],
       "sampleLines": [
-        "#03400 22:42:15.020 e3-mwqzt5ou-s18 CallRouted tool=execute provider=cloudflare:verified fence=n/a reject=-",
-        "#03401 22:42:15.022 e3-mwqzt5ou-s18 RefusalRecorded tool=execute provider=cloudflare:unverified fence=blocked reject=TargetNotNamed",
-        "#03402 22:42:15.159 e3-mwqzt5ou-s18 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
-        "#03403 22:42:15.325 e3-mwqzt5ou-s18 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
-        "#03404 22:42:15.327 e3-mwqzt5ou-s18 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
-        "#03405 22:42:15.381 e3-mwqzt5ou-s19 CallRouted tool=kv_put provider=acme:verified fence=n/a reject=-",
-        "#03406 22:42:15.405 e3-mwqzt5ou-s19 RefusalRecorded tool=kv_put provider=acme:unverified fence=blocked reject=TargetNotNamed",
-        "#03407 22:42:15.600 e3-mwqzt5ou-s19 CallRouted tool=execute provider=cloudflare:verified fence=n/a reject=-",
-        "#03408 22:42:15.603 e3-mwqzt5ou-s19 RefusalRecorded tool=execute provider=cloudflare:unverified fence=blocked reject=TargetNotNamed",
-        "#03409 22:42:15.890 e3-mwqzt5ou-s19 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
-        "#03410 22:42:16.070 e3-mwqzt5ou-s19 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
-        "#03411 22:42:16.071 e3-mwqzt5ou-s19 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-"
+        "#04412 22:59:27.673 e3-mwr0f7z1-s17 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#04413 22:59:27.675 e3-mwr0f7z1-s17 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#04414 22:59:27.726 e3-mwr0f7z1-s19 CallRouted tool=kv_put provider=acme:verified fence=n/a reject=-",
+        "#04415 22:59:27.758 e3-mwr0f7z1-s19 RefusalRecorded tool=kv_put provider=acme:unverified fence=blocked reject=TargetNotNamed",
+        "#04416 22:59:27.827 e3-mwr0f7z1-s18 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
+        "#04417 22:59:27.919 e3-mwr0f7z1-s19 CallRouted tool=execute provider=cloudflare:verified fence=n/a reject=-",
+        "#04418 22:59:27.921 e3-mwr0f7z1-s19 RefusalRecorded tool=execute provider=cloudflare:unverified fence=blocked reject=TargetNotNamed",
+        "#04419 22:59:28.027 e3-mwr0f7z1-s18 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#04420 22:59:28.028 e3-mwr0f7z1-s18 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#04421 22:59:28.218 e3-mwr0f7z1-s19 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
+        "#04422 22:59:28.396 e3-mwr0f7z1-s19 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#04423 22:59:28.398 e3-mwr0f7z1-s19 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-"
       ]
     },
     "projected": {

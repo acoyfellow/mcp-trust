@@ -62,11 +62,12 @@ export const formatLine = (row: FlightRow): string => {
 
 const RED = "\u001b[31m";
 const GREEN = "\u001b[32m";
+const DIM = "\u001b[2m";
 const RESET = "\u001b[0m";
 
 export const colorize = (row: FlightRow, line: string, enabled: boolean): string => {
   if (!enabled) return line;
   if (row.kind === "rejection") return `${RED}${line}${RESET}`;
   if (row.verdict === "allowed" || row.name === "CallRouted") return `${GREEN}${line}${RESET}`;
-  return line;
+  return `${DIM}${line}${RESET}`;
 };

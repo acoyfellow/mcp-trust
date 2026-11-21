@@ -17,6 +17,9 @@ Replay runs the view's own fold. It shows that the recording has every event, on
 
 ## Limits
 
+- A page is at most 20 events. A page of 200 hung the gateway when a recorder had a backlog of about 100 events, and a page of 80 never returned with a log of about 4,000 rows. Each listed event carries the full view state, so cost grows with the size of the log.
+- If the connection drops, the recorder prints `mcp-trust waiting for the gateway`, retries every 500 ms, and resumes from the last event it wrote. `receipts/e3b-recorder-reconnect.json` shows 0 lost and 0 duplicated.
+
 - The admin routes have no access control. Put Access in front of them before any deploy.
 - The long poll reads a Durable Object every 50 ms for each open recorder.
 - The log persists between local runs, so a run starts from the cursor from `/admin/flight/head`.

@@ -8,7 +8,6 @@ import {
   mulberry32,
   percentile,
   pool,
-  post,
   type Receipt,
   writeReceipt,
 } from "../lib/common.ts";

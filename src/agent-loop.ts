@@ -10,6 +10,7 @@ export interface RunRequest {
   readonly gateway: string;
   readonly task: string;
   readonly maxSteps?: number;
+  readonly stopAfter?: ReadonlyArray<string>;
 }
 
 export interface ToolCall {
@@ -104,6 +105,10 @@ export const runAgent = async (
         meta: (result._meta as Json | undefined) ?? null,
       });
       messages.push({ role: "tool", tool_call_id: call.id, name: call.name, content: resultText });
+    }
+    const stop = request.stopAfter;
+    if (stop !== undefined && calls.some((c) => !c.isError && stop.includes(c.tool))) {
+      break;
     }
   }
   return { model: MODEL, toolsOffered: tools.map((t) => t.name), calls, final, neurons, aiCalls };
