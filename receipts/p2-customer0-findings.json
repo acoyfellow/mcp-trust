@@ -1,0 +1,38 @@
+{
+  "schema": "mcp-trust/receipt/v1",
+  "experiment": "account-access",
+  "claimId": "F1-customer0-access",
+  "verdict": "verified",
+  "intent": "Record why Phase 2 could not run on the Customer 0 account. This is a product finding, not a claim about the gateway.",
+  "execution": {
+    "command": "alchemy dev --stage mcp_trust_p2 with ALCHEMY_PROFILE=customer0, then calls through the local Gateway, Acme and Agent Workers",
+    "date": "2026-11-21",
+    "note": "Observed by this session: the two Alchemy findings. Reported by the orchestrator and not reproduced here: the two wrangler findings."
+  },
+  "evidence": {
+    "observed": {
+      "alchemyCustomer0Profile": {
+        "profileAccount": "Customer 0 (checked with `alchemy profile show --profile customer0`)",
+        "namespaceCreate": "ok: two namespaces were created in Customer 0",
+        "kvGetPutDeleteFromWorker": "failed: 403 Forbidden on every operation (NamespaceError: KV GET, PUT and DELETE failed: 403 Forbidden)",
+        "workersAiFromWorker": "failed: InferenceUpstreamError, error code 1050"
+      },
+      "alchemyDefaultProfileAgentExperience": {
+        "workersAiFromWorker": "ok: real model reply with a neurons figure",
+        "kvPutGetFromWorker": "ok: value read back"
+      }
+    },
+    "projected": {
+      "reportedByOrchestratorNotReproduced": {
+        "wrangler_customer0_kv": "put, get and delete ok. So the KV 403 comes from the Alchemy customer0 profile grant, not from the account.",
+        "wrangler_customer0_workers_ai": "error 1050. So the Customer 0 account lacks Workers AI."
+      },
+      "interpretation": "Two separate causes: an OAuth grant in the Alchemy profile that cannot reach KV from a Worker, and an account without Workers AI. Neither was confirmed by reading credentials. Neither is a defect in the gateway."
+    },
+    "realized": {}
+  },
+  "constraintCleared": [
+    { "constraint": "No Cloudflare resources other than local dev resources and the two scratch KV namespaces", "met": true, "how": "Namespaces created on Customer 0 and on Agent Experience by this session were deleted. The two namespaces now in use are mcp-trust-scratch and mcp-trust-decoy on Agent Experience." }
+  ],
+  "cost": { "note": "A few Workers AI calls ran under the Agent Experience account before the account problem was found: about 5 calls, roughly 80 neurons." }
+}

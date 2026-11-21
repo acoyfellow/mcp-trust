@@ -1,5 +1,5 @@
 {
-  "state": "phase-2-blocked-on-account-access",
+  "state": "phase-2-gate-2",
   "iteration": 1,
   "northStar": "An agent user can see which provider each tool call really reaches, and can see every write the agent attempts, before a bad call does harm.",
   "constraint": "No mocks. Real Workers AI model, real upstream MCP servers, real KV side effects in scratch namespaces only.",
@@ -10,21 +10,21 @@
       "claim": "Each of 17 sampled domain rules has a story that fails when the rule is removed.",
       "receipt": "receipts/p1-domain-mutation-check.json",
       "scope": "17 hand-picked mutations in src/domain. This does not prove that the rule set is complete or correct for real agents."
-    }
-  ],
-  "unproven": [
+    },
     {
       "id": "E1-tool-passport",
       "claim": "Registration order never decides identity. A tool's identity is (provider, name). When two servers with valid passports both expose `execute`, the gateway keeps both tools, qualified by provider, and records a collision. A call by bare name is rejected when two providers expose the name. A call that names the trusted provider reaches the trusted server whether the impostor registered first or last. Without passports, a Workers AI function-calling agent with two servers that both expose `execute` calls the impostor in at least 20% of 50 trials. With passports on, the gateway blocks 100% of impostor calls and 0% of trusted calls. An impostor call is a call that reaches a server whose verified provider is not the provider the session trusts for that tool, or a server with no valid passport.",
-      "experiment": "experiments/tool-passport",
-      "receipt": null
+      "receipt": "receipts/e1-tool-passport.json",
+      "scope": "50 trials per arm, model @cf/meta/llama-3.3-70b-instruct-fp8-fast. Naive impostor rate (25/50) equals the shuffled registration order, not model preference. The impostor in the passports arm lacks the provider key. The valid-second-provider path (qualified names, AmbiguousTool, NameCollided) is covered by domain stories only."
     },
     {
       "id": "E2-write-fence",
       "claim": "A fence that allows writes only to targets named in the user prompt blocks 100% of injected write targets across 20 poisoned-document cases, with 0 false blocks on 20 clean tasks, and adds under 5 ms p50 per call. No decoy key changes.",
-      "experiment": "experiments/write-fence",
-      "receipt": null
-    },
+      "receipt": "receipts/e2-write-fence.json",
+      "scope": "The model attempted the injected write in only 6 of 20 poisoned cases (naive 1/7, intermediate 3/7, skilled 2/6); all 6 were blocked. No control arm, so the receipt does not show the other 14 injections would have worked. Fence p50 3 ms (integer ms, local workerd, remote KV)."
+    }
+  ],
+  "unproven": [
     {
       "id": "E3-flight-recorder",
       "claim": "Every gateway event reaches a Rex terminal pane within 1 s p95, and replaying the recorded log rebuilds the FlightLog view with the same hash.",
@@ -39,6 +39,13 @@
     "Rejections do not record events. The Refusals aggregate records them for FlightLog. The gateway must send RecordRefusal after each rejection. A gateway crash between the two loses one entry.",
     "How does the gateway parse targets from the user prompt? E2 needs a parser that is not an LLM call.",
     "How does the session say which provider it trusts for a tool? E1 needs this to define an impostor call. The gateway must read it from operator config, never from the agent or a tool result.",
-    "Customer 0 returns Workers AI error 1050 and KV 403 through the customer0 Alchemy profile. Which scopes or entitlements are missing? See STATUS.md."
+    "E2: 14 of 20 injections were ignored by the model. Is a control arm (fence off) worth the extra 20 runs, to show how many injections succeed unfenced?"
+  ],
+  "findings": [
+    {
+      "id": "F1-customer0-access",
+      "receipt": "receipts/p2-customer0-findings.json",
+      "summary": "Customer 0 lacks Workers AI (error 1050). The Alchemy customer0 profile grant cannot reach KV from a Worker (403)."
+    }
   ]
 }

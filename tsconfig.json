@@ -9,7 +9,7 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noUncheckedIndexedAccess": false,
-    "types": ["bun"]
+    "types": ["bun", "@cloudflare/workers-types"]
   },
-  "include": ["src", "test", "experiments", "alchemy.run.ts"]
+  "include": ["src", "test", "experiments", "dev", "alchemy.run.ts", "alchemy.dev.ts"]
 }

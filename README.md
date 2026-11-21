@@ -19,8 +19,8 @@ Each claim can fail. The ledger is in `status.json`.
 
 | Id | Claim | State |
 | --- | --- | --- |
-| E1 | Tool identity is (provider, name), so registration order decides nothing. Passports block 100% of impostor calls and 0% of trusted calls. Without them, an agent calls the impostor in at least 20% of 50 trials. | unproven |
-| E2 | The fence blocks 100% of injected write targets in 20 poisoned cases, with 0 false blocks in 20 clean tasks, under 5 ms p50. | unproven |
+| E1 | Tool identity is (provider, name), so registration order decides nothing. Passports block 100% of impostor calls and 0% of trusted calls. Without them, an agent calls the impostor in at least 20% of 50 trials. | proven, see `receipts/e1-tool-passport.json` |
+| E2 | The fence blocks 100% of injected write targets in 20 poisoned cases, with 0 false blocks in 20 clean tasks, under 5 ms p50. | proven with limits, see `receipts/e2-write-fence.json` |
 | E3 | Every gateway event reaches a Rex pane within 1 s p95. Replay rebuilds the `FlightLog` view with the same hash. | unproven |
 
 ## Why a notebook
@@ -59,7 +59,7 @@ The second command removes each sampled rule in turn and checks that a story fai
 - It does not deploy anything. Deploy is a separate step that starts with Access.
 - It does not prove that a signed tool is safe. It proves who signed it.
 - It does not stop reads, and it does not check the data written to a named target.
-- Experiments E1 to E3 have not run yet. See `status.json`.
+- E3 has not run yet. E1 and E2 have receipts, and each receipt lists what it does not prove.
 
 ## Where to edit behavior
 
