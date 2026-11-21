@@ -1,5 +1,15 @@
 import { expect, test } from "bun:test";
 import { serveRpc, text } from "../src/mcp/rpc.ts";
+
+interface Reply {
+  readonly result: {
+    serverInfo: { name: string };
+    tools: Array<{ name: string }>;
+    content: Array<{ text: string }>;
+  };
+  readonly error: { code: number };
+}
+
 import { schemaHash } from "../src/mcp/schema-hash.ts";
 import { parseTargets, writeTarget } from "../src/targets.ts";
 
@@ -11,19 +21,28 @@ const handlers = {
 };
 
 test("serveRpc answers initialize, tools/list and tools/call, and ignores notifications", async () => {
-  const init = (await serveRpc({ jsonrpc: "2.0", id: 1, method: "initialize" }, handlers)) as any;
+  const init = (await serveRpc(
+    { jsonrpc: "2.0", id: 1, method: "initialize" },
+    handlers,
+  )) as unknown as Reply;
   expect(init.result.serverInfo.name).toBe("t");
-  const list = (await serveRpc({ jsonrpc: "2.0", id: 2, method: "tools/list" }, handlers)) as any;
+  const list = (await serveRpc(
+    { jsonrpc: "2.0", id: 2, method: "tools/list" },
+    handlers,
+  )) as unknown as Reply;
   expect(list.result.tools[0].name).toBe("echo");
   const call = (await serveRpc(
     { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "echo", arguments: { a: 1 } } },
     handlers,
-  )) as any;
+  )) as unknown as Reply;
   expect(call.result.content[0].text).toBe('echo:{"a":1}');
   expect(
     await serveRpc({ jsonrpc: "2.0", method: "notifications/initialized" }, handlers),
   ).toBeNull();
-  const unknown = (await serveRpc({ jsonrpc: "2.0", id: 4, method: "nope" }, handlers)) as any;
+  const unknown = (await serveRpc(
+    { jsonrpc: "2.0", id: 4, method: "nope" },
+    handlers,
+  )) as unknown as Reply;
   expect(unknown.error.code).toBe(-32601);
 });
 

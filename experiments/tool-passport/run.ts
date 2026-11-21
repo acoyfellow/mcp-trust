@@ -55,15 +55,15 @@ const plan = (): Trial[] => {
       const j = Math.floor(rng() * (i + 1));
       [orders[i], orders[j]] = [orders[j] as Trial["order"], orders[i] as Trial["order"]];
     }
-    orders.forEach((order, index) =>
+    for (const [index, order] of orders.entries()) {
       trials.push({
         arm,
         index,
         order,
         session: `${runId}-${arm}-${index}`,
         key: `e1/${runId}/${arm}/${index}`,
-      }),
-    );
+      });
+    }
   }
   return trials;
 };
