@@ -1,0 +1,126 @@
+{
+  "schema": "mcp-trust/receipt/v1",
+  "experiment": "flight-recorder",
+  "claimId": "E3-flight-recorder",
+  "verdict": "verified",
+  "intent": "Every gateway event reaches a Rex terminal pane within 1 s p95, and replaying the recorded log rebuilds the FlightLog view exactly (same hash). The pane runs the bun recorder opened with rex split. One line per event: time, session, tool, provider (verified or not), the fence verdict, and the rejection name if there is one.",
+  "execution": {
+    "command": "bun experiments/flight-recorder/run.ts",
+    "startedAt": "2026-11-21T22:41:52.398Z",
+    "endedAt": "2026-11-21T22:42:17.773Z",
+    "commit": "aee5d048caee83105837516de9948d40588cba4e",
+    "dirty": false,
+    "sessions": 20,
+    "concurrency": 4,
+    "seed": 20261123,
+    "traffic": "Per session: 3 upstream servers register (acme, cloudflare, cloudflare-mcp), then 6 tool calls through the gateway over MCP with 60 to 260 ms between calls: read_document, kv_put to a named target, kv_put to an unnamed target, cloudflare__execute, cloudflare-mcp__execute, kv_delete. No model is involved.",
+    "latencyDefinition": "paneLatency = the time the polling `rex capture` of the pane returned with the line, minus the event's `at` from the FlightLog row. Poll loop back to back with 10 ms sleep. The capture end time is later than the moment the line was drawn, so the figure is an upper bound. wireLatency = the time the recorder finished writing the line to its stdout, minus `at`.",
+    "clock": "gateway, recorder and harness run on one machine and share one clock",
+    "replay": "FlightLog.evolve (the view's own fold) applied to the recorded raw domain events in recorded order, starting from the log state at the cursor where recording began.",
+    "passCriteria": {
+      "everyEventSeenInThePaneExactlyOnce": true,
+      "paneLatencyP95Under1s": true,
+      "recordingHoldsEveryEventInOrder": true,
+      "replayHashEqualsLiveHash": true,
+      "droppingOneRecordChangesTheHash": true,
+      "swappingTwoRecordsChangesTheHash": true
+    },
+    "pane": {
+      "block": "block:01a20046-077d-73c0-84f2-2ab39b0fe0c4",
+      "recordingTo": ".dev/<run>.jsonl"
+    }
+  },
+  "evidence": {
+    "observed": {
+      "eventsRecorded": 460,
+      "eventsByName": {
+        "CallRouted": 100,
+        "NameCollided": 40,
+        "ReadAllowed": 20,
+        "RefusalRecorded": 60,
+        "ServerRegistered": 60,
+        "TargetsNamed": 20,
+        "ToolRegistered": 120,
+        "WriteAllowed": 40
+      },
+      "startingCursor": 2951,
+      "trafficMs": 16809,
+      "paneLatencyMs": {
+        "n": 460,
+        "p50": 123,
+        "p95": 276,
+        "p99": 345,
+        "max": 348,
+        "min": 34
+      },
+      "wireLatencyMs": {
+        "n": 460,
+        "p50": 105,
+        "p95": 262,
+        "max": 333
+      },
+      "captureCallMs": {
+        "n": 504,
+        "p50": 22,
+        "p95": 24
+      },
+      "paneLinesPerEvent": {
+        "missing": 0,
+        "duplicated": 0
+      },
+      "liveHash": "eb3c8b7e10404703b4e45d936035c91a3b2acf0a0b59dcf6dd66ea30bd73829d",
+      "replayHash": "eb3c8b7e10404703b4e45d936035c91a3b2acf0a0b59dcf6dd66ea30bd73829d",
+      "negativeControls": {
+        "droppedOneRecordHash": "f826cca11a05ad0754883e891fb3a2ac9df67391be2f257a18f5d2fd40e418e0",
+        "swappedTwoRecordsHash": "f303d3fca74563ef15cd7961e63836f29d32ce31e0e951d5e7c744b933543c60"
+      },
+      "scratchKeysLeft": [],
+      "sampleLines": [
+        "#03400 22:42:15.020 e3-mwqzt5ou-s18 CallRouted tool=execute provider=cloudflare:verified fence=n/a reject=-",
+        "#03401 22:42:15.022 e3-mwqzt5ou-s18 RefusalRecorded tool=execute provider=cloudflare:unverified fence=blocked reject=TargetNotNamed",
+        "#03402 22:42:15.159 e3-mwqzt5ou-s18 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
+        "#03403 22:42:15.325 e3-mwqzt5ou-s18 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#03404 22:42:15.327 e3-mwqzt5ou-s18 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#03405 22:42:15.381 e3-mwqzt5ou-s19 CallRouted tool=kv_put provider=acme:verified fence=n/a reject=-",
+        "#03406 22:42:15.405 e3-mwqzt5ou-s19 RefusalRecorded tool=kv_put provider=acme:unverified fence=blocked reject=TargetNotNamed",
+        "#03407 22:42:15.600 e3-mwqzt5ou-s19 CallRouted tool=execute provider=cloudflare:verified fence=n/a reject=-",
+        "#03408 22:42:15.603 e3-mwqzt5ou-s19 RefusalRecorded tool=execute provider=cloudflare:unverified fence=blocked reject=TargetNotNamed",
+        "#03409 22:42:15.890 e3-mwqzt5ou-s19 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
+        "#03410 22:42:16.070 e3-mwqzt5ou-s19 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#03411 22:42:16.071 e3-mwqzt5ou-s19 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-"
+      ]
+    },
+    "projected": {
+      "note": "Local run: gateway, recorder and pane on one machine. A deployed gateway adds network latency between the gateway and the recorder, and that is not measured here. The recorder reads the gateway with a long poll (FlightLog.list every 50 ms inside the gateway), not a push stream.",
+      "notProven": [
+        "Latency with a deployed gateway.",
+        "Behaviour when the recorder loses its connection and reconnects.",
+        "Throughput above this traffic (about 23 events per session, 4 sessions at once).",
+        "That replay would catch a bug in the view's fold, because it runs the same fold. It catches lost, duplicated and reordered events."
+      ]
+    },
+    "realized": {}
+  },
+  "constraintCleared": [
+    {
+      "constraint": "A real Rex pane, opened with rex split",
+      "met": true,
+      "how": "The recorder ran in the pane. The harness read the pane with rex capture."
+    },
+    {
+      "constraint": "Real gateway events from real MCP calls",
+      "met": true,
+      "how": "Sessions called real upstream Workers through the gateway over HTTP. No model output is involved or faked."
+    },
+    {
+      "constraint": "No process or pane left behind",
+      "met": true,
+      "how": "The pane is closed with rex block close and the stack is stopped in finally blocks."
+    }
+  ],
+  "cost": {
+    "workersAiCalls": 0,
+    "neurons": 0,
+    "kvWrites": 40
+  }
+}

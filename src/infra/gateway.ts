@@ -48,6 +48,8 @@ interface Session {
 
 const sessions = new Map<string, Session>();
 
+const MAX_EVENT_PAGE = 20;
+
 type RejectionTag = typeof RejectionName.Type;
 const REJECTION_TAGS: ReadonlySet<string> = new Set<RejectionTag>([
   "ServerAlreadyRegistered",
@@ -354,7 +356,13 @@ export default class Gateway extends Cloudflare.Worker<Gateway>()(
           const waitMs = Math.min(Number(url.searchParams.get("wait") ?? 0), 25_000);
           const deadline = Date.now() + waitMs;
           for (;;) {
-            const page = yield* log.list(THE_FLIGHT, { after, take: 200 });
+            const page = yield* log.list(THE_FLIGHT, {
+              after,
+              take: Math.min(
+                Number(url.searchParams.get("take") ?? MAX_EVENT_PAGE),
+                MAX_EVENT_PAGE,
+              ),
+            });
             if (page.entries.length > 0 || Date.now() >= deadline) {
               return yield* HttpServerResponse.json({
                 cursor: page.cursor,

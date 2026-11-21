@@ -18,18 +18,17 @@ const SESSIONS = Number(process.env.E3B_SESSIONS ?? 12);
 const OFFICIAL = SESSIONS === 12;
 const CONCURRENCY = 4;
 const SEED = 20261124;
-const PROXY_PORT = 8890;
 const RUN = `e3b-${Date.now().toString(36)}`;
 const CUTS: ReadonlyArray<{ afterMs: number; forMs: number }> = [
   { afterMs: 2000, forMs: 2500 },
   { afterMs: 6500, forMs: 2500 },
 ];
 
-const startProxy = async (target: string) => {
+const startProxy = async (target: string, port = 0) => {
   for (let attempt = 0; attempt < 40; attempt++) {
     try {
       return Bun.serve({
-        port: PROXY_PORT,
+        port,
         hostname: "127.0.0.1",
         idleTimeout: 60,
         fetch: (request) => {
@@ -58,8 +57,9 @@ const main = async () => {
     const out = `${repoRoot}/.dev/${RUN}.jsonl`;
     rmSync(out, { force: true });
     let proxy = await startProxy(urls.gatewayUrl);
+    const proxyPort = proxy.port;
     const pane = await startPane({
-      gateway: `http://127.0.0.1:${PROXY_PORT}`,
+      gateway: `http://127.0.0.1:${proxyPort}`,
       out,
       after: head.cursor,
     });
@@ -89,7 +89,7 @@ const main = async () => {
           const from = Date.now();
           proxy.stop(true);
           await sleep(cut.forMs);
-          proxy = await startProxy(urls.gatewayUrl);
+          proxy = await startProxy(urls.gatewayUrl, proxyPort);
           outages.push({ from, to: Date.now() });
         }
       })();
@@ -193,6 +193,7 @@ const main = async () => {
             liveHash,
             replayHash,
             scratchKeysLeft: leftKeys,
+            paneTail: finalText.split("\n").slice(-14),
           },
           projected: {
             note: "The cut is a local proxy that drops its sockets and refuses connections. It is not a network partition between machines. The recorder process stayed alive. A recorder that is killed and restarted resumes only if it is started with the cursor, and the CLI has no resume flag yet.",
@@ -228,6 +229,7 @@ const main = async () => {
             observed: {
               ...(receipt.evidence.observed as object),
               liveHash: undefined,
+              missingSeqs: undefined,
               replayHash: undefined,
             },
           },
