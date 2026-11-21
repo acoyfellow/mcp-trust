@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "bin": {
+    "mcp-trust": "./bin/mcp-trust.ts"
+  },
   "description": "An experiment notebook: tool passports, write fences and a flight recorder for MCP gateways.",
   "license": "MIT",
   "scripts": {
@@ -10,9 +13,11 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",
+    "watch": "bun bin/mcp-trust.ts watch",
     "e1": "bun experiments/tool-passport/run.ts",
     "e1b": "bun experiments/lookalike-provider/run.ts",
     "e2": "bun experiments/write-fence/run.ts",
+    "e3": "bun experiments/flight-recorder/run.ts",
     "e2:control": "bun experiments/write-fence/control.ts",
     "mutation": "bun scripts/mutation-check.ts"
   },

@@ -1,4 +1,5 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import { HttpServerRequest } from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
@@ -328,6 +329,45 @@ export default class Gateway extends Cloudflare.Worker<Gateway>()(
           const body = (yield* request.json) as unknown as Parameters<typeof configure>[1];
           const out = yield* configure(SessionId.make(parts[2]), body);
           return yield* HttpServerResponse.json(out);
+        }
+
+        if (
+          parts[0] === "admin" &&
+          parts[1] === "flight" &&
+          parts[2] === "head" &&
+          request.method === "GET"
+        ) {
+          const snapshot = yield* log.snapshot(THE_FLIGHT);
+          return yield* HttpServerResponse.json({
+            cursor: snapshot.cursor,
+            entries: snapshot.state === null ? [] : snapshot.state.entries,
+          });
+        }
+
+        if (
+          parts[0] === "admin" &&
+          parts[1] === "flight" &&
+          parts[2] === "events" &&
+          request.method === "GET"
+        ) {
+          const after = Number(url.searchParams.get("after") ?? 0);
+          const waitMs = Math.min(Number(url.searchParams.get("wait") ?? 0), 25_000);
+          const deadline = Date.now() + waitMs;
+          for (;;) {
+            const page = yield* log.list(THE_FLIGHT, { after, take: 200 });
+            if (page.entries.length > 0 || Date.now() >= deadline) {
+              return yield* HttpServerResponse.json({
+                cursor: page.cursor,
+                entries: page.entries.map((entry) => ({
+                  seq: entry.envelope.seq,
+                  at: DateTime.formatIso(entry.envelope.at),
+                  event: JSON.parse(JSON.stringify(entry.event)) as unknown,
+                  row: entry.state === null ? null : entry.state.entries.at(-1),
+                })),
+              });
+            }
+            yield* Effect.sleep("50 millis");
+          }
         }
 
         if (parts[0] === "admin" && parts[1] === "flight" && request.method === "GET") {
