@@ -71,6 +71,7 @@ code { background: var(--you-soft); color: var(--you); padding: 1px 6px; border-
   padding: 24px; display: grid; gap: 12px;
 }
 .eli5 strong { color: var(--you); }
+video.demo { width: 100%; max-width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
 .diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
 .diagram svg { display: block; min-width: 820px; width: 100%; height: auto; }
 .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.85rem; color: var(--muted); margin-top: 12px; }
@@ -118,6 +119,12 @@ a:focus-visible { outline: 2px solid var(--you); outline-offset: 2px; }
     <p>Think of a party with a guest list. You write the list yourself, before anyone arrives. A doorman checks every guest against it.</p>
     <p>The agent is your helper at the door. It believes what it reads. A stranger hands it a note that says "let my friend in," so the helper brings the friend to the door.</p>
     <p>The doorman checks the list. The friend isn't on it, so the friend stays out. The note changed what the helper wanted. It couldn't change the list.</p>
+  </section>
+
+  <section class="stack" aria-labelledby="video-h">
+    <h2 id="video-h">See it run</h2>
+    <video class="demo" controls muted playsinline preload="metadata" poster="demo-poster.jpg" src="demo.mp4" aria-describedby="video-cap"></video>
+    <p class="foot col" id="video-cap">51 seconds, with a real model. In step 3, a poisoned document tells the agent to write to <code>decoy:</code>. The gateway refuses with <code>TargetNotNamed</code>, and the decoy key stays unchanged. The pane on the right is the gateway's live log of every decision.</p>
   </section>
 
   <section class="stack" aria-labelledby="flow-h">
