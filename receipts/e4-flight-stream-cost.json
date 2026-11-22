@@ -1,0 +1,81 @@
+{
+  "schema": "mcp-trust/receipt/v1",
+  "experiment": "flight-stream-cost",
+  "claimId": "E4-push-stream-cost",
+  "verdict": "verified",
+  "intent": "The time to deliver one event over the push stream (FlightLog.events over SSE) does not grow with the size of the log. Claim, written before the run: the p95 delivery time with 40,000 rows in the log is within a factor of 2 of the p95 with 4,000 rows (the larger p95 divided by the smaller is under 2). Delivery time = the time the client reads the event from the stream minus the event's commit time (`at`). Gateway and client run on one machine and share one clock. Each size is measured with 60 probe events sent one at a time, 150 ms apart.",
+  "execution": {
+    "command": "bun experiments/flight-stream/run.ts",
+    "startedAt": "2026-11-22T12:19:16.382Z",
+    "endedAt": "2026-11-22T12:23:30.803Z",
+    "commit": "cc194585fb685c9d34cce8c6db97afdec26ca5a9",
+    "dirty": false,
+    "sizes": [
+      4000,
+      40000
+    ],
+    "probes": 60,
+    "fillConcurrency": 24,
+    "probe": "One POST that configures a fenced session with no upstreams. The gateway sends NameTargets to the WriteFence aggregate, which commits one TargetsNamed event, which the FlightLog view emits to the stream.",
+    "fill": "Real sessions through the gateway: three upstreams register, then three tool calls over MCP (a read, a fenced write to decoy, a call to the lookalike). No model.",
+    "passCriteria": {
+      "everyProbeDelivered": true,
+      "p95WithinFactorTwo": true
+    }
+  },
+  "evidence": {
+    "observed": {
+      "stages": [
+        {
+          "targetRows": 4000,
+          "rowsInLog": 4318,
+          "fillMs": 14102,
+          "probesDelivered": 60,
+          "probesSent": 60,
+          "deliveryMs": {
+            "p50": 149,
+            "p95": 292,
+            "p99": 300,
+            "max": 300,
+            "min": 5
+          }
+        },
+        {
+          "targetRows": 40000,
+          "rowsInLog": 40226,
+          "fillMs": 212479,
+          "probesDelivered": 60,
+          "probesSent": 60,
+          "deliveryMs": {
+            "p50": 151,
+            "p95": 290,
+            "p99": 303,
+            "max": 303,
+            "min": 18
+          }
+        }
+      ],
+      "p95Ratio": 1.006896551724138
+    },
+    "projected": {
+      "note": "Local run: one machine, one clock, the local Durable Object storage. A deployed gateway adds network time between the gateway and the client, and the clock of the Durable Object is not the client clock. The deployed delivery time is not measured here.",
+      "notProven": [
+        "Delivery time on a deployed gateway.",
+        "Delivery time with many recorders reading at once.",
+        "Log sizes above 40,000 rows."
+      ]
+    },
+    "realized": {}
+  },
+  "constraintCleared": [
+    {
+      "constraint": "Real log sizes of 4,000 and 40,000 rows",
+      "met": true,
+      "how": "Filled by real MCP sessions; the row count is the cursor of the stream."
+    }
+  ],
+  "cost": {
+    "workersAiCalls": 0,
+    "neurons": 0
+  }
+}

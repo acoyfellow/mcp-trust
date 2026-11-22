@@ -21,4 +21,4 @@ Open a private report with the repository owner. Do not post exploit details in 
 
 ## Local admin routes
 
-`Acme` and `Gateway` expose `/admin/*` routes. They seed, read and delete KV keys, and they read the flight log and stream it to the recorder (`/admin/flight`, `/admin/flight/head`, `/admin/flight/events`). They have no access control. They exist for local experiment runs. Remove them before any deploy. Never bind them to a public URL.
+`Acme` and `Gateway` expose `/admin/*` routes. They seed, read and delete KV keys, and they read the flight log and stream it to the recorder (`/admin/flight`, `/admin/flight/head`, `/admin/flight/stream`). Locally they have no access control. When `ACCESS_AUD` and `ACCESS_TEAM_DOMAIN` are set, the Gateway refuses every route with 403 unless `Cf-Access-Jwt-Assertion` holds a valid Cloudflare Access token (`src/access/jwt.ts`, `receipts/e5-access-gate.json`). Without those two variables the Gateway checks nothing, so never bind a Gateway to a public URL without them.

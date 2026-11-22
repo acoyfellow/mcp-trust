@@ -85,6 +85,7 @@ export interface Receipt {
   readonly claimId: string;
   readonly verdict: "verified" | "verified-disproved" | "inconclusive";
   readonly intent: string;
+  readonly environment?: "local" | "deployed";
   readonly execution: Record<string, unknown>;
   readonly evidence: { observed: unknown; projected: unknown; realized: unknown };
   readonly constraintCleared: ReadonlyArray<{ constraint: string; met: boolean; how: string }>;

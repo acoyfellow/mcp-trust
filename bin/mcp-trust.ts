@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { accessHeaders, tokenSource } from "../src/access/token.ts";
 import { closePane, startPane } from "../src/recorder/pane.ts";
 import { record } from "../src/recorder/record.ts";
 import { hashState, readRecords, replay } from "../src/recorder/replay.ts";
@@ -7,7 +8,7 @@ const USAGE = `mcp-trust: watch the flight log of an MCP gateway.
 
 Usage:
   mcp-trust watch  --gateway URL [--out FILE] [--compact]   open a Rex pane that records and prints one line per event
-  mcp-trust record --gateway URL [--out FILE] [--after N] [--compact]   record and print in this terminal
+  mcp-trust record --gateway URL [--out FILE] [--after N] [--compact] [--access-app URL]   record and print in this terminal
   mcp-trust replay FILE                         rebuild the FlightLog view from a recording and print its hash
   mcp-trust close  BLOCK                        close a pane that watch opened
 `;
@@ -28,6 +29,9 @@ const main = async (argv: ReadonlyArray<string>) => {
       gateway,
       out: flag(rest, "out"),
       compact: has(rest, "compact"),
+      ...(flag(rest, "access-app") === undefined
+        ? {}
+        : { headers: accessHeaders(tokenSource(flag(rest, "access-app") as string)) }),
     });
     console.log(`pane ${pane.blockId}`);
     console.log(`recording to ${pane.out}`);

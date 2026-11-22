@@ -123,33 +123,72 @@ const mutations: ReadonlyArray<Mutation> = [
     to: "",
   },
   {
-    rule: "FlightLog logs a name collision",
-    file: "src/domain/flight-log.ts",
-    from: "NameCollided: (s, e, c) =>\n      append(",
-    to: "NameCollided: (s, e, c) =>\n      s ?? append(",
+    rule: "FlightLog row logs a name collision",
+    file: "src/domain/flight-row.ts",
+    from: 'case "NameCollided":',
+    to: 'case "NameCollidedX":',
   },
   {
-    rule: "FlightLog numbers entries in order",
-    file: "src/domain/flight-log.ts",
-    from: "seq: state.entries.length + 1,",
+    rule: "FlightLog row takes its number from the stream order",
+    file: "src/domain/flight-row.ts",
+    from: "seq: input.seq,",
     to: "seq: 0,",
   },
   {
-    rule: "FlightLog marks fence refusals as blocked",
-    file: "src/domain/flight-log.ts",
+    rule: "FlightLog row marks fence refusals as blocked",
+    file: "src/domain/flight-row.ts",
     from: 'new Set(["TargetNotNamed", "TargetsNotDeclared"])',
     to: "new Set<string>()",
   },
   {
-    rule: "FlightLog marks a routed call's provider verified",
+    rule: "FlightLog row marks a routed call's provider verified",
+    file: "src/domain/flight-row.ts",
+    from: 'provider: text(event, "provider"),\n        verified: true,\n      });\n    case "TargetsNamed"',
+    to: 'provider: text(event, "provider"),\n        verified: false,\n      });\n    case "TargetsNamed"',
+  },
+  {
+    rule: "FlightLog keeps the session an event came from",
     file: "src/domain/flight-log.ts",
-    from: "provider: e.provider,\n          verified: true,\n        }),\n      ),\n    TargetsNamed",
-    to: "provider: e.provider,\n          verified: false,\n        }),\n      ),\n    TargetsNamed",
+    from: "session: context.source.id,",
+    to: 'session: "",',
+  },
+  {
+    rule: "Access check refuses a token with the wrong audience",
+    file: "src/access/jwt.ts",
+    from: "if (!audiences.includes(config.aud))",
+    to: "if (false)",
+  },
+  {
+    rule: "Access check refuses a token with the wrong issuer",
+    file: "src/access/jwt.ts",
+    from: "if (claims.iss !== issuerOf(config.teamDomain))",
+    to: "if (false)",
+  },
+  {
+    rule: "Access check refuses an expired token",
+    file: "src/access/jwt.ts",
+    from: "claims.exp <= seconds",
+    to: "claims.exp <= 0",
+  },
+  {
+    rule: "Access check refuses a bad signature",
+    file: "src/access/jwt.ts",
+    from: "if (!valid)",
+    to: "if (false)",
+  },
+  {
+    rule: "Access check refuses an unsupported algorithm",
+    file: "src/access/jwt.ts",
+    from: 'if (header.alg !== "RS256")',
+    to: "if (false)",
   },
 ];
 
 const runTests = async (): Promise<{ failed: ReadonlyArray<string>; exit: number }> => {
-  const proc = Bun.spawn(["bun", "test", "test/domain"], { stdout: "pipe", stderr: "pipe" });
+  const proc = Bun.spawn(["bun", "test", "test/domain", "test/access.test.ts"], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   const [out, err] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),

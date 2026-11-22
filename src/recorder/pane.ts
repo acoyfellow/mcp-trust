@@ -30,6 +30,7 @@ export interface PaneOptions {
   readonly out?: string | undefined;
   readonly after?: number | undefined;
   readonly compact?: boolean | undefined;
+  readonly accessApp?: string | undefined;
 }
 
 export const startPane = async (options: PaneOptions): Promise<Pane> => {
@@ -60,6 +61,7 @@ export const startPane = async (options: PaneOptions): Promise<Pane> => {
     "--after",
     String(options.after ?? 0),
     ...(options.compact === true ? ["--compact"] : []),
+    ...(options.accessApp === undefined ? [] : ["--access-app", options.accessApp]),
   ]);
   const blockId = (JSON.parse(created) as { block_ids?: string[] }).block_ids?.[0];
   if (!blockId) throw new Error("rex split did not return a block id");

@@ -1,0 +1,132 @@
+{
+  "schema": "mcp-trust/receipt/v1",
+  "experiment": "flight-recorder",
+  "claimId": "E3-flight-recorder",
+  "verdict": "verified",
+  "intent": "Every gateway event reaches a Rex terminal pane within 1 s p95, and replaying the recorded log rebuilds the FlightLog view exactly (same hash). The pane runs the bun recorder opened with rex split. One line per event: time, session, tool, provider (verified or not), the fence verdict, and the rejection name if there is one.",
+  "execution": {
+    "command": "bun experiments/flight-recorder/run.ts",
+    "startedAt": "2026-11-21T22:59:01.789Z",
+    "endedAt": "2026-11-21T22:59:30.041Z",
+    "commit": "1a0b798923a78b2ba3afe966451892cc80666bee",
+    "dirty": false,
+    "sessions": 20,
+    "concurrency": 4,
+    "seed": 20261123,
+    "traffic": "Per session: 3 upstream servers register (acme, cloudflare, cloudflare-mcp), then 6 tool calls through the gateway over MCP with 60 to 260 ms between calls: read_document, kv_put to a named target, kv_put to an unnamed target, cloudflare__execute, cloudflare-mcp__execute, kv_delete. No model is involved.",
+    "latencyDefinition": "paneLatency = the time the polling `rex capture` of the pane returned with the line, minus the event's `at` from the FlightLog row. Poll loop back to back with 10 ms sleep. The capture end time is later than the moment the line was drawn, so the figure is an upper bound. wireLatency = the time the recorder finished writing the line to its stdout, minus `at`.",
+    "clock": "gateway, recorder and harness run on one machine and share one clock",
+    "replay": "FlightLog.evolve (the view's own fold) applied to the recorded raw domain events in recorded order, starting from the log state at the cursor where recording began.",
+    "passCriteria": {
+      "everyEventSeenInThePaneExactlyOnce": true,
+      "paneLatencyP95Under1s": true,
+      "recordingHoldsEveryEventInOrder": true,
+      "replayHashEqualsLiveHash": true,
+      "droppingOneRecordChangesTheHash": true,
+      "swappingTwoRecordsChangesTheHash": true
+    },
+    "pane": {
+      "block": "block:01a20055-bd6c-77db-9ac1-50467db331a1",
+      "recordingTo": ".dev/<run>.jsonl"
+    },
+    "amendments": [
+      {
+        "on": "2026-11-21",
+        "what": "Rerun after the gateway capped its events page at 20 (receipts/e3-flight-recorder-before-page-cap.json is the first run, with a page of up to 200). The first run never polled a backlog larger than a few events, so it did not show that a large page hangs. Latency is higher in this run (p95 327 ms against 276 ms) because the local log is larger: each listed event carries the full view state. The starting cursor was 3963 against 2951."
+      }
+    ]
+  },
+  "evidence": {
+    "observed": {
+      "eventsRecorded": 460,
+      "eventsByName": {
+        "CallRouted": 100,
+        "NameCollided": 40,
+        "ReadAllowed": 20,
+        "RefusalRecorded": 60,
+        "ServerRegistered": 60,
+        "TargetsNamed": 20,
+        "ToolRegistered": 120,
+        "WriteAllowed": 40
+      },
+      "startingCursor": 3963,
+      "trafficMs": 19494,
+      "paneLatencyMs": {
+        "n": 460,
+        "p50": 165,
+        "p95": 327,
+        "p99": 515,
+        "max": 520,
+        "min": 47
+      },
+      "wireLatencyMs": {
+        "n": 460,
+        "p50": 150,
+        "p95": 299,
+        "max": 515
+      },
+      "captureCallMs": {
+        "n": 589,
+        "p50": 22,
+        "p95": 24
+      },
+      "paneLinesPerEvent": {
+        "missing": 0,
+        "duplicated": 0
+      },
+      "liveHash": "d8400bc46a87b2feeb0f6480a99d9119125b794d4e0110a7b0ad67c018d0560e",
+      "replayHash": "d8400bc46a87b2feeb0f6480a99d9119125b794d4e0110a7b0ad67c018d0560e",
+      "negativeControls": {
+        "droppedOneRecordHash": "196865bd6faff093535dec3c56556150add3dc849a6b39a90ca754eac922fbd8",
+        "swappedTwoRecordsHash": "70020540bfeb5f58f6f4d3ec6ae396e8cb22cc85c9c62593bffee22d6cd184aa"
+      },
+      "scratchKeysLeft": [],
+      "sampleLines": [
+        "#04412 22:59:27.673 e3-mwr0f7z1-s17 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#04413 22:59:27.675 e3-mwr0f7z1-s17 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#04414 22:59:27.726 e3-mwr0f7z1-s19 CallRouted tool=kv_put provider=acme:verified fence=n/a reject=-",
+        "#04415 22:59:27.758 e3-mwr0f7z1-s19 RefusalRecorded tool=kv_put provider=acme:unverified fence=blocked reject=TargetNotNamed",
+        "#04416 22:59:27.827 e3-mwr0f7z1-s18 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
+        "#04417 22:59:27.919 e3-mwr0f7z1-s19 CallRouted tool=execute provider=cloudflare:verified fence=n/a reject=-",
+        "#04418 22:59:27.921 e3-mwr0f7z1-s19 RefusalRecorded tool=execute provider=cloudflare:unverified fence=blocked reject=TargetNotNamed",
+        "#04419 22:59:28.027 e3-mwr0f7z1-s18 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#04420 22:59:28.028 e3-mwr0f7z1-s18 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#04421 22:59:28.218 e3-mwr0f7z1-s19 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
+        "#04422 22:59:28.396 e3-mwr0f7z1-s19 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#04423 22:59:28.398 e3-mwr0f7z1-s19 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-"
+      ]
+    },
+    "projected": {
+      "note": "Local run: gateway, recorder and pane on one machine. A deployed gateway adds network latency between the gateway and the recorder, and that is not measured here. The recorder reads the gateway with a long poll (FlightLog.list every 50 ms inside the gateway), not a push stream.",
+      "notProven": [
+        "Latency with a deployed gateway.",
+        "Behaviour when the recorder loses its connection and reconnects.",
+        "Throughput above this traffic (about 23 events per session, 4 sessions at once).",
+        "That replay would catch a bug in the view's fold, because it runs the same fold. It catches lost, duplicated and reordered events."
+      ]
+    },
+    "realized": {}
+  },
+  "constraintCleared": [
+    {
+      "constraint": "A real Rex pane, opened with rex split",
+      "met": true,
+      "how": "The recorder ran in the pane. The harness read the pane with rex capture."
+    },
+    {
+      "constraint": "Real gateway events from real MCP calls",
+      "met": true,
+      "how": "Sessions called real upstream Workers through the gateway over HTTP. No model output is involved or faked."
+    },
+    {
+      "constraint": "No process or pane left behind",
+      "met": true,
+      "how": "The pane is closed with rex block close and the stack is stopped in finally blocks."
+    }
+  ],
+  "cost": {
+    "workersAiCalls": 0,
+    "neurons": 0,
+    "kvWrites": 40
+  }
+}

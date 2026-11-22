@@ -2,6 +2,48 @@
 
 Brief: `~/cloudflare/.briefs/mcp-trust.md`. Phase log for the orchestrator.
 
+## GATE 5a: PUSH STREAM AND ACCESS CHECK, LOCAL
+
+Date: 2026-11-22. Steps 1 and 2 of `~/cloudflare/.briefs/mcp-trust-phase5.md` are done locally. Step 3 (deploy) is on hold, as you said. I ran no `alchemy deploy`, created no Cloudflare resource, and made no call to the real Access app. The GIF is already pushed (`6246897`). The Gate 5a commits are local only: the push was denied by the permission classifier (see the end). I am waiting for you.
+
+### Step 1. Push stream
+
+- `FlightLog` now has no state. For each event it emits one `FlightLogged` event. The gateway sends them as server-sent events on `GET /admin/flight/stream?after=N` (`FlightLog.events`), with a heartbeat every 15 s. The recorder reconnects with `after=<last seq>` and skips anything at or below its cursor. The long-poll route and the page cap are gone.
+- Why the view had to change: the old view kept every row in its state, and the platform stored the state after each event. That is quadratic. My local state was 3.9 GB for about 4,000 rows, so 40,000 rows was not possible. The new view needs 409 MB for 40,000. I deleted my old gitignored local state (`.alchemy/local`) to start clean.
+- **E4, the claim written and committed before the run (cc19458): the p95 with 40,000 rows is within 2x of the p95 with 4,000.** Result: **verified.** p95 **292 ms** with 4,318 rows, **290 ms** with 40,226 rows, ratio **1.007**. p50 149 and 151 ms. 60 probes per size, all delivered. `receipts/e4-flight-stream-cost.json`.
+- E3 rerun on the stream: verified. 460 events, each in the pane once, replay hash equals live hash, drop and swap controls change the hash. Pane latency **p50 197 to 209 ms, p95 389 ms** over two runs. The long poll gave p50 123 ms and p95 276 ms. **The stream is not faster. The gain is that the cost stays flat.**
+- E3b rerun on the stream: verified, 0 lost, 0 duplicated. One thing to know: the run is now faster, so the traffic ended before the second cut. Only the first cut held events (126 of them). The negative catch-up figure in the receipt comes from that.
+- The old receipts are kept as the before: `e3-flight-recorder-long-poll.json`, `e3b-recorder-reconnect-long-poll.json`.
+- Replay now applies `rowOf` (shared with the gateway) to the recorded events, not a view fold. It still proves no loss, duplication or reordering. It does not prove `rowOf` is right. The stories cover that.
+
+### Step 2. Access, local part
+
+- `src/access/jwt.ts`: RS256 check with WebCrypto against the team's certs: signature, audience, issuer, expiry, algorithm. The certs are cached for 5 minutes and read again once when a key id is new. The gateway runs the check on every route when `ACCESS_AUD` and `ACCESS_TEAM_DOMAIN` are set, and answers 403 if it fails.
+- **E5, local: 42 of 42 requests refused with 403** (7 kinds of bad token on 6 routes, including the stream). A valid token got 200 on every route and 404 on a path that does not exist. `receipts/e5-access-gate.json`, marked `environment: local`.
+- **What E5 does not show:** the issuer is my harness, with its own keys, audience and team name. It tests the Worker's check. It does not test Cloudflare Access, the real audience (`dce994f3...`) or the real team certs. Those need the deployed Worker.
+- `src/access/token.ts` and `--access-app URL` on the recorder get a token from `cloudflared access token --app=...` and send it as `cf-access-token`. The token is never printed. It is unit-tested with a stand-in runner. **I did not run the real `cloudflared`**, because it can open a browser login.
+- A token is checked when a request starts. An open stream is not cut when its token expires.
+- The Access app, its policy and the zone: not touched. I did not confirm that the app exists, because that needs the API. That check comes first in step 3.
+
+### What step 3 needs, so you can decide
+
+I looked at the Worker code for the deploy and found these. I changed none of it.
+
+1. **The gateway keeps its sessions in a module-level `Map`.** On a deployed Worker, two requests can land in different isolates, so `/mcp/<session>` could say "no such session". I plan to move the session table into the domain (a session aggregate and a view, strongly consistent), which also works locally.
+2. **The agent and the upstreams must have no public route.** The agent calls the gateway, and the gateway calls the upstreams. A loop of service bindings (gateway to agent and agent to gateway) cannot deploy. My plan: the gateway Worker is private, a small edge Worker holds the custom domain, checks the Access token, and forwards to the gateway, the upstream admin routes and the agent through service bindings. The agent binds the gateway. The runners then use `cf-access-token` on the one public hostname.
+3. The stale Effect versions of the upstream and agent Workers in `src/infra/` differ from the ones I tested (`dev/*.ts`). I plan to deploy the tested code.
+4. Passports are signed for the upstream's URL, so the gateway will address the upstreams as fixed internal host names that the service bindings resolve.
+
+Nothing in this plan is built yet. Tell me to go, or change it.
+
+### Checks
+
+81 tests pass (12 new for the Access check and token helper, 1 for the stream parser, flight-log stories ported to emitted events). `tsc` and `biome` clean. Mutation check **29 of 29** caught (it covers the new row function and the Access check; 4 old mutations that targeted the removed view state were replaced). The demo was not rerun on the new stream. Its recorder path is the one E3 exercised. 0 processes and 0 panes left. Neurons: E3, E3b, E4 and E5 use none.
+
+### Push
+
+The commit for Gate 5a is local. My `git push origin main` was denied by the permission classifier. I did not try another way around it. To publish: run `git push origin main` yourself, or add a Bash permission rule for it. Unpushed: `cc19458` (push stream, E4 claim) and the Gate 5a commit.
+
 ## GATE 4b: DEMO READY
 
 Date: 2026-11-21. The three fixes from the take are done and I ran the demo once. I did not record video. I am waiting for the orchestrator.

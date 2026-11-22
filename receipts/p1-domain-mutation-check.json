@@ -5,8 +5,8 @@
   "observed": {
     "baselineGreen": true,
     "restoredGreen": true,
-    "mutations": 23,
-    "caught": 23,
+    "mutations": 29,
+    "caught": 29,
     "notApplied": 0,
     "results": [
       {
@@ -206,7 +206,7 @@
         "caught": true
       },
       {
-        "rule": "FlightLog logs a name collision",
+        "rule": "FlightLog row logs a name collision",
         "applied": true,
         "failedStories": [
           "a name collision is logged as an event, not a rejection"
@@ -214,7 +214,7 @@
         "caught": true
       },
       {
-        "rule": "FlightLog numbers entries in order",
+        "rule": "FlightLog row takes its number from the stream order",
         "applied": true,
         "failedStories": [
           "the log holds every event across sessions, one entry each, numbered in order"
@@ -222,7 +222,7 @@
         "caught": true
       },
       {
-        "rule": "FlightLog marks fence refusals as blocked",
+        "rule": "FlightLog row marks fence refusals as blocked",
         "applied": true,
         "failedStories": [
           "a fence refusal is logged with the blocked verdict"
@@ -230,10 +230,60 @@
         "caught": true
       },
       {
-        "rule": "FlightLog marks a routed call's provider verified",
+        "rule": "FlightLog row marks a routed call's provider verified",
         "applied": true,
         "failedStories": [
           "a routed call is logged with its provider marked verified"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "FlightLog keeps the session an event came from",
+        "applied": true,
+        "failedStories": [
+          "the log holds every event across sessions, one entry each, numbered in order",
+          "a routed call is logged with its provider marked verified"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "Access check refuses a token with the wrong audience",
+        "applied": true,
+        "failedStories": [
+          "a token with the wrong audience is refused"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "Access check refuses a token with the wrong issuer",
+        "applied": true,
+        "failedStories": [
+          "a token with the wrong issuer is refused"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "Access check refuses an expired token",
+        "applied": true,
+        "failedStories": [
+          "an expired token is refused, and a token with no expiry is refused"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "Access check refuses a bad signature",
+        "applied": true,
+        "failedStories": [
+          "a token with a forged signature under a listed key id is refused",
+          "a token with a changed payload is refused"
+        ],
+        "caught": true
+      },
+      {
+        "rule": "Access check refuses an unsupported algorithm",
+        "applied": true,
+        "failedStories": [
+          "alg none and malformed tokens are refused"
         ],
         "caught": true
       }

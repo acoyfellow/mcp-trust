@@ -4,12 +4,19 @@ The recorder shows the gateway flight log in a terminal pane.
 
 ## Parts
 
-- `GET /admin/flight/head` returns the log state and its cursor.
-- `GET /admin/flight/events?after=N&wait=MS` returns the raw domain events after cursor N. If there are none, the gateway checks every 50 ms until `wait` ends. This is a long poll.
-- `src/recorder/record.ts` calls the long poll in a loop. It prints one line per event and appends the event to a JSONL file.
+- `GET /admin/flight/head` returns the cursor: the number of the last event in the log.
+- `GET /admin/flight/stream?after=N` is a push stream (server-sent events). It sends every event after N, then each new event as it commits. Each frame has `id: <seq>` and `data: <json>`. A comment line (`: ping`) goes out every 15 seconds so a quiet connection stays open. The gateway reads it with `FlightLog.events`.
+- `GET /admin/flight` returns every row, read in pages of 500. Test harnesses use it. The recorder does not.
+- `src/recorder/record.ts` reads the stream. It prints one line per event and appends the event to a JSONL file. If the stream ends or fails, it prints `mcp-trust waiting for the gateway`, waits 500 ms, and reconnects with `after=<last seq it wrote>`. It skips any frame at or below its cursor.
 - `src/recorder/pane.ts` opens the recorder in a Rex pane with `rex split`, reads it with `rex capture`, and closes it with `rex block close`.
-- `src/recorder/replay.ts` applies `FlightLog.evolve` to recorded events and hashes the state. The hash is sha256 over canonical JSON with sorted keys.
-- `bin/mcp-trust.ts` is the command line: `watch`, `record`, `replay`, `close`.
+- `src/recorder/replay.ts` rebuilds the rows from the recorded events with `rowOf` (the same function the gateway uses) and hashes them. The hash is sha256 over canonical JSON with sorted keys.
+- `bin/mcp-trust.ts` is the command line: `watch`, `record`, `replay`, `close`. `--access-app URL` makes the recorder send a `cf-access-token` from `cloudflared access token`.
+
+## The view
+
+`FlightLog` has no state. For each event of the three aggregates it emits one `FlightLogged` event with the session, the time and the raw event. The row (`rowOf` in `src/domain/flight-row.ts`) is built from that event and its number in the stream. The cost of one event does not depend on the size of the log: `receipts/e4-flight-stream-cost.json` shows a p95 of 292 ms with 4,300 rows and 290 ms with 40,200 rows.
+
+The earlier view kept every row in its state, and the platform stored that state after each event. That cost grew with the log, about 3.9 GB of local state for 4,000 rows. The receipts from that design are kept: `e3-flight-recorder-long-poll.json`, `e3b-recorder-reconnect-long-poll.json`, `e3-flight-recorder-before-page-cap.json`.
 
 ## Display modes
 
@@ -19,13 +26,12 @@ Colors: red for refusals, green for allowed writes and pinned calls, yellow for 
 
 ## What replay proves
 
-Replay runs the view's own fold. It shows that the recording has every event, once, in order. It does not show that the fold is correct. The domain stories cover the fold.
+Replay applies the same row function to the recorded events. It shows that the recording has every event, once, in order, and that the rows it makes equal the rows the gateway reads from its log. It does not show that the row function is correct. The domain stories cover that.
 
 ## Limits
 
-- A page is at most 20 events. A page of 200 hung the gateway when a recorder had a backlog of about 100 events, and a page of 80 never returned with a log of about 4,000 rows. Each listed event carries the full view state, so cost grows with the size of the log.
-- If the connection drops, the recorder prints `mcp-trust waiting for the gateway`, retries every 500 ms, and resumes from the last event it wrote. `receipts/e3b-recorder-reconnect.json` shows 0 lost and 0 duplicated.
-
-- The admin routes have no access control. Put Access in front of them before any deploy.
-- The long poll reads a Durable Object every 50 ms for each open recorder.
+- Delivery takes about 150 ms at the median and 290 ms at p95 on a local run. The time is the same with a small log and a large one. It is not shorter than the long poll it replaced (p50 123 ms, p95 276 ms in the first E3 run). The gain is the flat cost, not speed.
+- A token is checked when a stream starts. A stream stays open after its token expires.
+- If the connection drops, the recorder reconnects and resumes from its last event. `receipts/e3b-recorder-reconnect.json` shows 0 lost and 0 duplicated. In that run the second cut came after the traffic had ended, so only the first cut held events.
+- A killed and restarted recorder has no resume flag. It starts from the `--after` value you give it.
 - The log persists between local runs, so a run starts from the cursor from `/admin/flight/head`.

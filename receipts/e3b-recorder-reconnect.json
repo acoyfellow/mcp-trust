@@ -6,9 +6,9 @@
   "intent": "When the connection between the recorder and the gateway is cut mid-run, the recorder resumes from its cursor with 0 events lost and 0 duplicated. The recording holds every event once in order, the pane shows each event exactly once, and replay still gives the live hash. Two cuts, 2.5 s each, while 12 sessions send traffic.",
   "execution": {
     "command": "bun experiments/flight-recorder/reconnect.ts",
-    "startedAt": "2026-11-21T23:00:02.464Z",
-    "endedAt": "2026-11-21T23:00:23.063Z",
-    "commit": "1a0b798923a78b2ba3afe966451892cc80666bee",
+    "startedAt": "2026-11-22T12:25:19.553Z",
+    "endedAt": "2026-11-22T12:25:35.855Z",
+    "commit": "cc194585fb685c9d34cce8c6db97afdec26ca5a9",
     "dirty": true,
     "sessions": 12,
     "concurrency": 4,
@@ -23,7 +23,7 @@
         "forMs": 2500
       }
     ],
-    "how": "The recorder in the Rex pane reads the gateway through a local proxy. The harness stops the proxy with closeActiveConnections, which kills the open long poll, waits, and starts it again on the same port. Traffic goes straight to the gateway and continues during each cut.",
+    "how": "The recorder in the Rex pane reads the gateway through a local proxy. The harness stops the proxy with closeActiveConnections, which kills the open stream, waits, and starts it again on the same port. Traffic goes straight to the gateway and continues during each cut.",
     "passCriteria": {
       "zeroEventsLostInTheRecording": true,
       "zeroEventsDuplicatedInTheRecording": true,
@@ -33,14 +33,8 @@
       "outageWasReal": true
     },
     "pane": {
-      "block": "block:01a20056-a5bd-79eb-b09a-c8fd4b36e298"
-    },
-    "amendments": [
-      {
-        "on": "2026-11-21",
-        "what": "Two smoke runs (8 sessions, written to /tmp only) failed first: the recording stopped at the first cut and never resumed. The cause was not the recorder. The gateway long poll returned up to 200 events, each with the full view state, and a backlog of about 100 events hung the gateway. The gateway now caps a page at 20 events, and this receipt is from the run after that fix. A third smoke run failed to start the stack (a SQLite lock between the three wrangler dev processes). Each worker now has its own state directory. Neither start failure changed any number."
-      }
-    ]
+      "block": "block:01a20337-e835-7737-943a-4b2cb34045be"
+    }
   },
   "evidence": {
     "observed": {
@@ -55,36 +49,36 @@
           "ms": 2501
         },
         {
-          "ms": 2502
+          "ms": 2501
         }
       ],
-      "eventsCreatedDuringOutages": 114,
+      "eventsCreatedDuringOutages": 126,
       "recorderWaitingLinesInPane": 10,
       "catchUp": {
-        "msFromRestoreToLastEventInPane": 4469,
+        "msFromRestoreToLastEventInPane": -2586,
         "delayOfEventsCreatedDuringOutageMs": {
-          "n": 114,
-          "p50": 1619,
-          "max": 2743
+          "n": 126,
+          "p50": 1765,
+          "max": 2560
         }
       },
-      "liveHash": "205af2f12736dd88ba95050552e2fb984d39afbb86dcfe8f7ef2f653e38eddb1",
-      "replayHash": "205af2f12736dd88ba95050552e2fb984d39afbb86dcfe8f7ef2f653e38eddb1",
+      "liveHash": "647e77ed2830e6d2c66cc3f46839fde54bc15a70c3fcd2ea84f3bebc7724ce0f",
+      "replayHash": "647e77ed2830e6d2c66cc3f46839fde54bc15a70c3fcd2ea84f3bebc7724ce0f",
       "scratchKeysLeft": [],
       "paneTail": [
-        "#04687 23:00:21.382 e3b-mwr0gisg-s11 CallRouted tool=execute provider=cloudflare:verified fence=n/a reject=-",
-        "#04688 23:00:21.384 e3b-mwr0gisg-s9 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
-        "#04689 23:00:21.386 e3b-mwr0gisg-s11 RefusalRecorded tool=execute provider=cloudflare:unverified fence=blocked reject=TargetNotNamed",
-        "#04690 23:00:21.519 e3b-mwr0gisg-s10 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
-        "#04691 23:00:21.549 e3b-mwr0gisg-s8 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
-        "#04692 23:00:21.550 e3b-mwr0gisg-s8 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
-        "#04693 23:00:21.644 e3b-mwr0gisg-s10 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
-        "#04694 23:00:21.645 e3b-mwr0gisg-s10 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
-        "#04695 23:00:21.723 e3b-mwr0gisg-s11 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
-        "#04696 23:00:21.749 e3b-mwr0gisg-s9 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
-        "#04697 23:00:21.750 e3b-mwr0gisg-s9 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
-        "#04698 23:00:21.979 e3b-mwr0gisg-s11 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
-        "#04699 23:00:21.980 e3b-mwr0gisg-s11 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#41475 12:25:31.429 e3b-mwrt84ht-s10 RefusalRecorded tool=execute provider=cloudflare:unverified fence=blocked reject=TargetNotNamed",
+        "#41476 12:25:31.452 e3b-mwrt84ht-s9 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#41477 12:25:31.453 e3b-mwrt84ht-s9 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#41478 12:25:31.489 e3b-mwrt84ht-s8 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#41479 12:25:31.490 e3b-mwrt84ht-s8 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#41480 12:25:31.536 e3b-mwrt84ht-s10 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
+        "#41481 12:25:31.773 e3b-mwrt84ht-s10 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#41482 12:25:31.774 e3b-mwrt84ht-s10 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "mcp-trust waiting for the gateway: Error: The socket connection was closed unexpectedly. For more information, pass",
+        "mcp-trust waiting for the gateway: Error: Unable to connect. Is the computer able to access the url?",
+        "mcp-trust waiting for the gateway: Error: Unable to connect. Is the computer able to access the url?",
+        "mcp-trust waiting for the gateway: Error: Unable to connect. Is the computer able to access the url?",
+        "mcp-trust waiting for the gateway: Error: Unable to connect. Is the computer able to access the url?",
         ""
       ]
     },

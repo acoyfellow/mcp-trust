@@ -1,0 +1,118 @@
+{
+  "schema": "mcp-trust/receipt/v1",
+  "experiment": "recorder-reconnect",
+  "claimId": "E3b-recorder-reconnect",
+  "verdict": "verified",
+  "intent": "When the connection between the recorder and the gateway is cut mid-run, the recorder resumes from its cursor with 0 events lost and 0 duplicated. The recording holds every event once in order, the pane shows each event exactly once, and replay still gives the live hash. Two cuts, 2.5 s each, while 12 sessions send traffic.",
+  "execution": {
+    "command": "bun experiments/flight-recorder/reconnect.ts",
+    "startedAt": "2026-11-21T23:00:02.464Z",
+    "endedAt": "2026-11-21T23:00:23.063Z",
+    "commit": "1a0b798923a78b2ba3afe966451892cc80666bee",
+    "dirty": true,
+    "sessions": 12,
+    "concurrency": 4,
+    "seed": 20261124,
+    "cuts": [
+      {
+        "afterMs": 2000,
+        "forMs": 2500
+      },
+      {
+        "afterMs": 6500,
+        "forMs": 2500
+      }
+    ],
+    "how": "The recorder in the Rex pane reads the gateway through a local proxy. The harness stops the proxy with closeActiveConnections, which kills the open long poll, waits, and starts it again on the same port. Traffic goes straight to the gateway and continues during each cut.",
+    "passCriteria": {
+      "zeroEventsLostInTheRecording": true,
+      "zeroEventsDuplicatedInTheRecording": true,
+      "recordingInOrderAndComplete": true,
+      "everyEventInThePaneExactlyOnce": true,
+      "replayHashEqualsLiveHash": true,
+      "outageWasReal": true
+    },
+    "pane": {
+      "block": "block:01a20056-a5bd-79eb-b09a-c8fd4b36e298"
+    },
+    "amendments": [
+      {
+        "on": "2026-11-21",
+        "what": "Two smoke runs (8 sessions, written to /tmp only) failed first: the recording stopped at the first cut and never resumed. The cause was not the recorder. The gateway long poll returned up to 200 events, each with the full view state, and a backlog of about 100 events hung the gateway. The gateway now caps a page at 20 events, and this receipt is from the run after that fix. A third smoke run failed to start the stack (a SQLite lock between the three wrangler dev processes). Each worker now has its own state directory. Neither start failure changed any number."
+      }
+    ]
+  },
+  "evidence": {
+    "observed": {
+      "eventsExpected": 276,
+      "eventsRecorded": 276,
+      "missingSeqs": [],
+      "duplicatedSeqs": [],
+      "paneMissing": 0,
+      "paneDuplicated": 0,
+      "outages": [
+        {
+          "ms": 2501
+        },
+        {
+          "ms": 2502
+        }
+      ],
+      "eventsCreatedDuringOutages": 114,
+      "recorderWaitingLinesInPane": 10,
+      "catchUp": {
+        "msFromRestoreToLastEventInPane": 4469,
+        "delayOfEventsCreatedDuringOutageMs": {
+          "n": 114,
+          "p50": 1619,
+          "max": 2743
+        }
+      },
+      "liveHash": "205af2f12736dd88ba95050552e2fb984d39afbb86dcfe8f7ef2f653e38eddb1",
+      "replayHash": "205af2f12736dd88ba95050552e2fb984d39afbb86dcfe8f7ef2f653e38eddb1",
+      "scratchKeysLeft": [],
+      "paneTail": [
+        "#04687 23:00:21.382 e3b-mwr0gisg-s11 CallRouted tool=execute provider=cloudflare:verified fence=n/a reject=-",
+        "#04688 23:00:21.384 e3b-mwr0gisg-s9 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
+        "#04689 23:00:21.386 e3b-mwr0gisg-s11 RefusalRecorded tool=execute provider=cloudflare:unverified fence=blocked reject=TargetNotNamed",
+        "#04690 23:00:21.519 e3b-mwr0gisg-s10 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
+        "#04691 23:00:21.549 e3b-mwr0gisg-s8 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#04692 23:00:21.550 e3b-mwr0gisg-s8 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#04693 23:00:21.644 e3b-mwr0gisg-s10 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#04694 23:00:21.645 e3b-mwr0gisg-s10 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#04695 23:00:21.723 e3b-mwr0gisg-s11 RefusalRecorded tool=execute provider=cloudflare-mcp:unverified fence=n/a reject=ProviderNotNamed",
+        "#04696 23:00:21.749 e3b-mwr0gisg-s9 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#04697 23:00:21.750 e3b-mwr0gisg-s9 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        "#04698 23:00:21.979 e3b-mwr0gisg-s11 CallRouted tool=kv_delete provider=acme:verified fence=n/a reject=-",
+        "#04699 23:00:21.980 e3b-mwr0gisg-s11 WriteAllowed tool=kv_delete provider=- fence=allowed reject=-",
+        ""
+      ]
+    },
+    "projected": {
+      "note": "The cut is a local proxy that drops its sockets and refuses connections. It is not a network partition between machines. The recorder process stayed alive. A recorder that is killed and restarted resumes only if it is started with the cursor, and the CLI has no resume flag yet.",
+      "notProven": [
+        "A recorder process that is killed and restarted.",
+        "Outages longer than the gateway keeps events (the local log keeps all of them).",
+        "A deployed gateway."
+      ]
+    },
+    "realized": {}
+  },
+  "constraintCleared": [
+    {
+      "constraint": "A real Rex pane running the real recorder",
+      "met": true,
+      "how": "Opened with rex split, read with rex capture, closed with rex block close."
+    },
+    {
+      "constraint": "Real gateway events from real MCP calls",
+      "met": true,
+      "how": "Same traffic as E3. No model."
+    }
+  ],
+  "cost": {
+    "workersAiCalls": 0,
+    "neurons": 0,
+    "kvWrites": 24
+  }
+}

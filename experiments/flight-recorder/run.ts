@@ -189,10 +189,9 @@ const main = async () => {
               .slice(-12),
           },
           projected: {
-            note: "Local run: gateway, recorder and pane on one machine. A deployed gateway adds network latency between the gateway and the recorder, and that is not measured here. The recorder reads the gateway with a long poll (FlightLog.list every 50 ms inside the gateway), not a push stream.",
+            note: "Local run: gateway, recorder and pane on one machine. A deployed gateway adds network latency between the gateway and the recorder, and that is not measured here. The recorder reads the gateway over a push stream (FlightLog.events sent as server-sent events from the gateway), with cursor resume. The before run, on the long poll, is receipts/e3-flight-recorder-long-poll.json.",
             notProven: [
               "Latency with a deployed gateway.",
-              "Behaviour when the recorder loses its connection and reconnects.",
               "Throughput above this traffic (about 23 events per session, 4 sessions at once).",
               "That replay would catch a bug in the view's fold, because it runs the same fold. It catches lost, duplicated and reordered events.",
             ],

@@ -1,5 +1,5 @@
 {
-  "state": "phase-3-gate-4-demo",
+  "state": "phase-5-gate-5a-push-stream-access-local",
   "iteration": 1,
   "northStar": "An agent user can see which provider each tool call really reaches, and can see every write the agent attempts, before a bad call does harm.",
   "constraint": "No mocks. Real Workers AI model, real upstream MCP servers, real KV side effects in scratch namespaces only.",
@@ -9,7 +9,7 @@
       "id": "P1-domain-rules-covered",
       "claim": "Each of 17 sampled domain rules has a story that fails when the rule is removed.",
       "receipt": "receipts/p1-domain-mutation-check.json",
-      "scope": "17 hand-picked mutations in src/domain. This does not prove that the rule set is complete or correct for real agents."
+      "scope": "29 hand-picked mutations in src/domain and src/access: 24 domain rules and the flight rows, 5 in the Access token check. Each makes at least one test fail. This does not prove that the rule set is complete or correct for real agents."
     },
     {
       "id": "E1-tool-passport",
@@ -45,20 +45,31 @@
       "id": "E3-flight-recorder",
       "claim": "Every gateway event reaches a Rex terminal pane within 1 s p95, and replaying the recorded log rebuilds the FlightLog view with the same hash.",
       "receipt": "receipts/e3-flight-recorder.json",
-      "scope": "Rerun after the gateway capped its events page at 20: 460 events from 20 sessions, 4 at a time, real MCP calls through the gateway, no model. Each event seen in the pane exactly once. Pane latency p50 165 ms, p95 327 ms, max 520 ms (upper bound: it includes the rex capture poll, p50 22 ms per call). The first run (receipts/e3-flight-recorder-before-page-cap.json) gave p95 276 ms. Latency rises with the size of the local log, because each listed event carries the full view state. Replay with FlightLog.evolve over the recorded raw events gives the live hash. Dropping one record and swapping two records both change the hash. Local run, one machine, one clock. Long poll, not a push stream. Replay runs the same fold, so it proves no loss, duplication or reordering, not that the fold is right."
+      "scope": "Rerun on the push stream: 460 events from 20 sessions, 4 at a time, real MCP calls, no model. Each event seen in the pane exactly once. Pane latency p50 197 to 209 ms, p95 389 ms, max 433 to 476 ms over two runs (upper bound: it includes the rex capture poll). The long poll gave p50 123 ms, p95 276 ms in the first run (receipts/e3-flight-recorder-long-poll.json), so the stream is not faster. Replay equals the live rows (same hash). Dropping one record and swapping two both change the hash. Local run, one machine, one clock. Replay runs the same row function, so it proves no loss, duplication or reordering, not that the function is right."
     },
     {
       "id": "E3b-recorder-reconnect",
       "claim": "When the connection between the recorder and the gateway is cut mid-run, the recorder resumes from its cursor with 0 events lost and 0 duplicated.",
       "receipt": "receipts/e3b-recorder-reconnect.json",
-      "scope": "276 events, 12 sessions, two 2.5 s cuts of a local proxy between the pane's recorder and the gateway. 114 events were created during the cuts. Recording: 0 missing, 0 duplicated, in order. Pane: each event exactly once. Replay hash equals the live hash. Events created during a cut reached the pane after the proxy came back (p50 1.6 s, max 2.7 s after creation, so bounded by the cut). The recorder process stayed alive. A killed and restarted recorder is not tested and the CLI has no resume flag. The first two smoke runs found a real fault: the gateway hung on a backlog of about 100 events with a page of 200. The page is now capped at 20."
+      "scope": "Rerun on the push stream: 276 events, 12 sessions, two 2.5 s cuts of a local proxy between the pane's recorder and the gateway. 126 events were created during the cuts, all in the first cut: the traffic ended before the second cut, so the second cut carried none. Recording: 0 missing, 0 duplicated, in order. Pane: each event exactly once. Replay equals live. The recorder process stayed alive. A killed and restarted recorder is not tested and the CLI has no resume flag. Long-poll run kept as the before: receipts/e3b-recorder-reconnect-long-poll.json."
+    },
+    {
+      "id": "E4-push-stream-cost",
+      "claim": "The time to deliver one event over the push stream does not grow with the size of the log: p95 292 ms with 4,318 rows, 290 ms with 40,226 rows (ratio 1.007, claim was under 2).",
+      "receipt": "receipts/e4-flight-stream-cost.json",
+      "scope": "60 probe events per size, one at a time, 150 ms apart. Delivery = client read time minus the event's commit time, one machine, one clock, local Durable Object storage. p50 149 and 151 ms. The claim was written and committed before the run (commit cc19458). Local state after the run: 409 MB for 40,000 rows; the earlier stateful view used 3.9 GB for about 4,000. Not measured: a deployed gateway, several recorders at once, more than 40,000 rows."
+    },
+    {
+      "id": "E5-access-gate",
+      "claim": "The gateway Worker refuses every route with 403 unless Cf-Access-Jwt-Assertion holds a token signed by a listed key, with the app audience and issuer, not expired. 42 of 42 requests with 7 kinds of bad token on 6 routes got 403; a valid token got 200 on every route.",
+      "receipt": "receipts/e5-access-gate.json",
+      "scope": "Local. The harness is the issuer: it signs with WebCrypto and serves its own certs on a local port. This tests the Worker's check, not Cloudflare Access, and not the real audience or team certs. The token helper (cloudflared) is unit-tested with a stand-in runner; the real binary is not run. A token is checked at request start, so an open stream outlives its token."
     }
   ],
   "unproven": [],
   "disproven": [],
   "openQuestions": [
-    "The flight log endpoint costs time in proportion to log size: each listed event carries the full view state. At about 4,000 rows a page of 20 takes about 185 ms, and a page of 80 never returned. Before deploy, change the FlightLog design (no per-event state, or a ring of recent rows) or read it with FlightLog.events instead of list?",
-    "Deploy: /admin/* stays and goes behind Access (your answer). Access service tokens for the recorder pane are still to decide.",
+    "Deploy is on hold. Before it: the Worker layout is gateway (private) plus an edge Worker on the custom domain that checks the token and uses service bindings to the gateway, the upstreams and the agent. The gateway's session table is an in-memory Map, which does not work across isolates when deployed. Plan: move it into the domain (a session aggregate and a view). Say go to start step 3.",
     "A killed and restarted recorder has no resume flag. Add `--resume` that reads the cursor from the recording file?"
   ],
   "findings": [

@@ -164,7 +164,7 @@ const main = async () => {
           concurrency: CONCURRENCY,
           seed: SEED,
           cuts: CUTS,
-          how: "The recorder in the Rex pane reads the gateway through a local proxy. The harness stops the proxy with closeActiveConnections, which kills the open long poll, waits, and starts it again on the same port. Traffic goes straight to the gateway and continues during each cut.",
+          how: "The recorder in the Rex pane reads the gateway through a local proxy. The harness stops the proxy with closeActiveConnections, which kills the open stream, waits, and starts it again on the same port. Traffic goes straight to the gateway and continues during each cut.",
           passCriteria: parts,
           pane: { block: pane.blockId },
         },

@@ -1,0 +1,286 @@
+{
+  "schema": "mcp-trust/receipt/v1",
+  "experiment": "access-gate",
+  "claimId": "E5-access-gate",
+  "verdict": "verified",
+  "intent": "The gateway Worker refuses every route with 403 unless the Cf-Access-Jwt-Assertion header holds a token that is signed by a key in the team's certs, has the app's audience and issuer, and has not expired. Seven bad tokens on six routes: 42 requests, all 403. A valid token gets 200 on every route (404 for a path that does not exist).",
+  "environment": "local",
+  "execution": {
+    "command": "bun experiments/access/run.ts",
+    "startedAt": "2026-11-22T12:28:13.790Z",
+    "endedAt": "2026-11-22T12:28:20.944Z",
+    "commit": "cc194585fb685c9d34cce8c6db97afdec26ca5a9",
+    "dirty": true,
+    "how": "The gateway runs under alchemy dev with ACCESS_AUD, ACCESS_TEAM_DOMAIN and ACCESS_CERTS_URL set. The harness is the issuer: it generates two RSA keys, serves one of them as the team's certs on a local port, and signs the tokens with WebCrypto. The Worker fetches those certs over HTTP and verifies the signatures with WebCrypto, the same code that runs when the certs URL is the team's.",
+    "passCriteria": {
+      "everyRefusalWas403": true,
+      "everyRouteRefusedAllSevenBadTokens": true,
+      "validTokenReachedEveryRouteExceptUnknownPath": true,
+      "unknownPathWithValidTokenIsNotForbidden": true,
+      "streamDeliveredAnEventWithAValidToken": true
+    }
+  },
+  "evidence": {
+    "observed": {
+      "refused": [
+        {
+          "route": "admin: head",
+          "token": "no token",
+          "status": 403
+        },
+        {
+          "route": "admin: head",
+          "token": "garbage",
+          "status": 403
+        },
+        {
+          "route": "admin: head",
+          "token": "wrong audience",
+          "status": 403
+        },
+        {
+          "route": "admin: head",
+          "token": "wrong issuer",
+          "status": 403
+        },
+        {
+          "route": "admin: head",
+          "token": "expired",
+          "status": 403
+        },
+        {
+          "route": "admin: head",
+          "token": "signed by a key the team does not list",
+          "status": 403
+        },
+        {
+          "route": "admin: head",
+          "token": "forged key id",
+          "status": 403
+        },
+        {
+          "route": "admin: flight rows",
+          "token": "no token",
+          "status": 403
+        },
+        {
+          "route": "admin: flight rows",
+          "token": "garbage",
+          "status": 403
+        },
+        {
+          "route": "admin: flight rows",
+          "token": "wrong audience",
+          "status": 403
+        },
+        {
+          "route": "admin: flight rows",
+          "token": "wrong issuer",
+          "status": 403
+        },
+        {
+          "route": "admin: flight rows",
+          "token": "expired",
+          "status": 403
+        },
+        {
+          "route": "admin: flight rows",
+          "token": "signed by a key the team does not list",
+          "status": 403
+        },
+        {
+          "route": "admin: flight rows",
+          "token": "forged key id",
+          "status": 403
+        },
+        {
+          "route": "admin: stream",
+          "token": "no token",
+          "status": 403
+        },
+        {
+          "route": "admin: stream",
+          "token": "garbage",
+          "status": 403
+        },
+        {
+          "route": "admin: stream",
+          "token": "wrong audience",
+          "status": 403
+        },
+        {
+          "route": "admin: stream",
+          "token": "wrong issuer",
+          "status": 403
+        },
+        {
+          "route": "admin: stream",
+          "token": "expired",
+          "status": 403
+        },
+        {
+          "route": "admin: stream",
+          "token": "signed by a key the team does not list",
+          "status": 403
+        },
+        {
+          "route": "admin: stream",
+          "token": "forged key id",
+          "status": 403
+        },
+        {
+          "route": "admin: configure a session",
+          "token": "no token",
+          "status": 403
+        },
+        {
+          "route": "admin: configure a session",
+          "token": "garbage",
+          "status": 403
+        },
+        {
+          "route": "admin: configure a session",
+          "token": "wrong audience",
+          "status": 403
+        },
+        {
+          "route": "admin: configure a session",
+          "token": "wrong issuer",
+          "status": 403
+        },
+        {
+          "route": "admin: configure a session",
+          "token": "expired",
+          "status": 403
+        },
+        {
+          "route": "admin: configure a session",
+          "token": "signed by a key the team does not list",
+          "status": 403
+        },
+        {
+          "route": "admin: configure a session",
+          "token": "forged key id",
+          "status": 403
+        },
+        {
+          "route": "mcp: tools/list",
+          "token": "no token",
+          "status": 403
+        },
+        {
+          "route": "mcp: tools/list",
+          "token": "garbage",
+          "status": 403
+        },
+        {
+          "route": "mcp: tools/list",
+          "token": "wrong audience",
+          "status": 403
+        },
+        {
+          "route": "mcp: tools/list",
+          "token": "wrong issuer",
+          "status": 403
+        },
+        {
+          "route": "mcp: tools/list",
+          "token": "expired",
+          "status": 403
+        },
+        {
+          "route": "mcp: tools/list",
+          "token": "signed by a key the team does not list",
+          "status": 403
+        },
+        {
+          "route": "mcp: tools/list",
+          "token": "forged key id",
+          "status": 403
+        },
+        {
+          "route": "an unknown path",
+          "token": "no token",
+          "status": 403
+        },
+        {
+          "route": "an unknown path",
+          "token": "garbage",
+          "status": 403
+        },
+        {
+          "route": "an unknown path",
+          "token": "wrong audience",
+          "status": 403
+        },
+        {
+          "route": "an unknown path",
+          "token": "wrong issuer",
+          "status": 403
+        },
+        {
+          "route": "an unknown path",
+          "token": "expired",
+          "status": 403
+        },
+        {
+          "route": "an unknown path",
+          "token": "signed by a key the team does not list",
+          "status": 403
+        },
+        {
+          "route": "an unknown path",
+          "token": "forged key id",
+          "status": 403
+        }
+      ],
+      "accepted": [
+        {
+          "route": "admin: head",
+          "status": 200
+        },
+        {
+          "route": "admin: flight rows",
+          "status": 200
+        },
+        {
+          "route": "admin: stream",
+          "status": 200
+        },
+        {
+          "route": "admin: configure a session",
+          "status": 200
+        },
+        {
+          "route": "mcp: tools/list",
+          "status": 200
+        },
+        {
+          "route": "an unknown path",
+          "status": 404
+        }
+      ],
+      "streamedEvents": 1
+    },
+    "projected": {
+      "note": "This tests the Worker's check. It does not test Cloudflare Access itself. The issuer is local, with a made-up audience and team name. The check against the real app (audience dce994f3...) and the real team certs happens on the deployed Worker, and is not run yet. A token is checked when a request starts: an open stream is not cut when its token expires.",
+      "notProven": [
+        "That the real team certs and the real app audience verify. This needs the deployed Worker.",
+        "That Access itself stops a request with no token before the Worker. This needs the deployed hostname.",
+        "`cloudflared access token` as the source of the token: the helper is unit-tested with a stand-in runner, and the real binary is not run."
+      ]
+    },
+    "realized": {}
+  },
+  "constraintCleared": [
+    {
+      "constraint": "Real signature verification, not a bypass",
+      "met": true,
+      "how": "Tokens signed with RSA-SHA256 by WebCrypto; a forged key id and a stranger's key are refused."
+    }
+  ],
+  "cost": {
+    "workersAiCalls": 0,
+    "neurons": 0
+  }
+}

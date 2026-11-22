@@ -1,10 +1,13 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
+import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import { HttpServerRequest } from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
+import { type AccessConfig, checkAccess } from "../access/jwt.ts";
 import { FlightLog, type FlightLogged, rowOf } from "../domain/flight-log.ts";
 import { SessionId, THE_FLIGHT } from "../domain/ids.ts";
 import { RecordRefusal, Refusals, type RejectionName } from "../domain/refusals.ts";
@@ -104,6 +107,17 @@ export default class Gateway extends Cloudflare.Worker<Gateway>()(
     const fence = yield* WriteFence;
     const refusals = yield* Refusals;
     const log = yield* FlightLog;
+    const accessAud = yield* Config.option(Config.String("ACCESS_AUD"));
+    const accessTeam = yield* Config.option(Config.String("ACCESS_TEAM_DOMAIN"));
+    const accessCerts = yield* Config.option(Config.String("ACCESS_CERTS_URL"));
+    const access: AccessConfig | null =
+      Option.isSome(accessAud) && Option.isSome(accessTeam)
+        ? {
+            aud: accessAud.value,
+            teamDomain: accessTeam.value,
+            certsUrl: Option.getOrUndefined(accessCerts),
+          }
+        : null;
 
     const refuse = (
       sessionId: SessionId,
@@ -337,6 +351,16 @@ export default class Gateway extends Cloudflare.Worker<Gateway>()(
         const request = yield* HttpServerRequest;
         const url = new URL(request.url, "http://worker");
         const parts = url.pathname.split("/").filter(Boolean);
+
+        if (access !== null) {
+          const checked = yield* Effect.promise(() => checkAccess(request.headers, access));
+          if (!checked.ok) {
+            return yield* HttpServerResponse.json(
+              { error: "forbidden", reason: checked.reason },
+              { status: 403 },
+            );
+          }
+        }
 
         if (
           parts[0] === "admin" &&
