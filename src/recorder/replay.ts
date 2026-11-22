@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import * as DateTime from "effect/DateTime";
-import { FlightLog } from "../domain/flight-log.ts";
+import { rowOf } from "../domain/flight-row.ts";
 import type { FlightRow, Recorded } from "./format.ts";
 
 export interface LogState {
@@ -17,17 +16,19 @@ export const readRecords = (file: string): ReadonlyArray<Recorded> =>
 export const replay = (
   records: ReadonlyArray<Recorded>,
   seed: LogState = { entries: [] },
-): LogState =>
-  records.reduce(
-    (state, record) =>
-      FlightLog.evolve(state, {
-        name: record.source,
+): LogState => ({
+  entries: [
+    ...seed.entries,
+    ...records.map((record) =>
+      rowOf({
+        seq: record.seq,
+        at: record.at,
+        session: record.session,
         event: record.event,
-        source: { id: record.session },
-        envelope: { at: DateTime.makeUnsafe(record.at) },
-      } as never) as LogState,
-    seed,
-  );
+      }),
+    ),
+  ],
+});
 
 const canonical = (value: unknown): string => {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;

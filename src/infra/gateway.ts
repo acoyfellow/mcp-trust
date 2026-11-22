@@ -1,11 +1,11 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import { HttpServerRequest } from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
-import * as Option from "effect/Option";
 import * as Result from "effect/Result";
-import { FlightLog } from "../domain/flight-log.ts";
+import * as Schedule from "effect/Schedule";
+import * as Stream from "effect/Stream";
+import { FlightLog, type FlightLogged, rowOf } from "../domain/flight-log.ts";
 import { SessionId, THE_FLIGHT } from "../domain/ids.ts";
 import { RecordRefusal, Refusals, type RejectionName } from "../domain/refusals.ts";
 import { RegisterServer, RegisterTool, RouteCall, ToolRegistry } from "../domain/tool-registry.ts";
@@ -48,7 +48,23 @@ interface Session {
 
 const sessions = new Map<string, Session>();
 
-const MAX_EVENT_PAGE = 20;
+const wireOf = (entry: {
+  readonly event: unknown;
+  readonly envelope: { readonly seq: number };
+}) => {
+  const logged = entry.event as FlightLogged;
+  const event = logged.event as { _tag: string };
+  return {
+    seq: entry.envelope.seq,
+    at: logged.at,
+    source: logged.source,
+    event,
+    row: rowOf({ seq: entry.envelope.seq, at: logged.at, session: logged.session, event }),
+  };
+};
+
+const frame = (wire: { readonly seq: number }): string =>
+  `id: ${wire.seq}\ndata: ${JSON.stringify(wire)}\n\n`;
 
 type RejectionTag = typeof RejectionName.Type;
 const REJECTION_TAGS: ReadonlySet<string> = new Set<RejectionTag>([
@@ -340,49 +356,42 @@ export default class Gateway extends Cloudflare.Worker<Gateway>()(
           request.method === "GET"
         ) {
           const snapshot = yield* log.snapshot(THE_FLIGHT);
-          return yield* HttpServerResponse.json({
-            cursor: snapshot.cursor,
-            entries: snapshot.state === null ? [] : snapshot.state.entries,
-          });
+          return yield* HttpServerResponse.json({ cursor: snapshot.cursor ?? 0 });
         }
 
         if (
           parts[0] === "admin" &&
           parts[1] === "flight" &&
-          parts[2] === "events" &&
+          parts[2] === "stream" &&
           request.method === "GET"
         ) {
-          const after = Number(url.searchParams.get("after") ?? 0);
-          const waitMs = Math.min(Number(url.searchParams.get("wait") ?? 0), 25_000);
-          const deadline = Date.now() + waitMs;
-          for (;;) {
-            const page = yield* log.list(THE_FLIGHT, {
-              after,
-              take: Math.min(
-                Number(url.searchParams.get("take") ?? MAX_EVENT_PAGE),
-                MAX_EVENT_PAGE,
-              ),
-            });
-            if (page.entries.length > 0 || Date.now() >= deadline) {
-              return yield* HttpServerResponse.json({
-                cursor: page.cursor,
-                entries: page.entries.map((entry) => ({
-                  seq: entry.envelope.seq,
-                  at: DateTime.formatIso(entry.envelope.at),
-                  event: JSON.parse(JSON.stringify(entry.event)) as unknown,
-                  row: entry.state === null ? null : entry.state.entries.at(-1),
-                })),
-              });
-            }
-            yield* Effect.sleep("50 millis");
-          }
+          const after = Number(
+            url.searchParams.get("after") ?? request.headers["last-event-id"] ?? 0,
+          );
+          const frames = log
+            .events(THE_FLIGHT, { after })
+            .pipe(Stream.map((entry) => frame(wireOf(entry))));
+          const heartbeat = Stream.fromSchedule(Schedule.spaced("15 seconds")).pipe(
+            Stream.map(() => ": ping\n\n"),
+          );
+          return HttpServerResponse.stream(
+            Stream.merge(frames, heartbeat).pipe(Stream.encodeText),
+            {
+              contentType: "text/event-stream",
+              headers: { "cache-control": "no-store", "x-accel-buffering": "no" },
+            },
+          );
         }
 
         if (parts[0] === "admin" && parts[1] === "flight" && request.method === "GET") {
-          const state = yield* log.get(THE_FLIGHT);
-          return yield* HttpServerResponse.json(
-            Option.isSome(state) ? { entries: state.value.entries } : { entries: [] },
-          );
+          const rows: Array<unknown> = [];
+          for (let after = 0; ; ) {
+            const page = yield* log.list(THE_FLIGHT, { after, take: 500 });
+            for (const entry of page.entries) rows.push(wireOf(entry).row);
+            if (page.cursor === null || page.entries.length === 0) break;
+            after = page.cursor;
+          }
+          return yield* HttpServerResponse.json({ entries: rows });
         }
 
         if (parts[0] === "mcp" && parts[1] && request.method === "POST") {

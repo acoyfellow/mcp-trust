@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Story } from "@alchemy.run/domain/Story";
-import { FlightLog } from "../../src/domain/flight-log.ts";
+import { FlightLog, type FlightLogged, rowOf } from "../../src/domain/flight-log.ts";
 import { THE_FLIGHT } from "../../src/domain/ids.ts";
 import { RecordRefusal, RefusalRecorded } from "../../src/domain/refusals.ts";
 import {
@@ -24,6 +24,19 @@ import {
   s2,
   story,
 } from "./fixtures.ts";
+
+const rowsOf = (
+  entries: ReadonlyArray<{ readonly event: unknown; readonly envelope: { readonly seq: number } }>,
+) =>
+  entries.map((entry) => {
+    const logged = entry.event as FlightLogged;
+    return rowOf({
+      seq: entry.envelope.seq,
+      at: logged.at,
+      session: logged.session,
+      event: logged.event as { _tag: string },
+    });
+  });
 
 const acmeServer = new ServerRegistered({
   serverId: "acme-1",
@@ -53,7 +66,8 @@ test("the log holds every event across sessions, one entry each, numbered in ord
       ),
       Story.when(fence(s2), new RequestWrite({ tool: "kv_put", target: "scratch:a" })),
       Story.then(fence(s2), new WriteAllowed({ tool: "kv_put", target: "scratch:a" })),
-      Story.view(FlightLog, THE_FLIGHT, (state) => {
+      Story.emitted(FlightLog, THE_FLIGHT, (entries) => {
+        const state = { entries: rowsOf(entries) };
         expect(state.entries.map((e) => e.seq)).toEqual([1, 2, 3, 4, 5]);
         expect(state.entries.map((e) => e.name).sort()).toEqual(
           [
@@ -81,7 +95,8 @@ test("a routed call is logged with its provider marked verified", () =>
         registry(),
         new CallRouted({ tool: "execute", server: "acme-1", provider: "acme", pinned: false }),
       ),
-      Story.view(FlightLog, THE_FLIGHT, (state) => {
+      Story.emitted(FlightLog, THE_FLIGHT, (entries) => {
+        const state = { entries: rowsOf(entries) };
         const routed = state.entries.find((e) => e.name === "CallRouted");
         expect(routed).toMatchObject({
           kind: "event",
@@ -110,7 +125,8 @@ test("a server registration is logged with its provider marked unverified", () =
         }),
       ),
       Story.then(registry(), acmeServer),
-      Story.view(FlightLog, THE_FLIGHT, (state) => {
+      Story.emitted(FlightLog, THE_FLIGHT, (entries) => {
+        const state = { entries: rowsOf(entries) };
         expect(state.entries[0]).toMatchObject({
           name: "ServerRegistered",
           provider: "acme",
@@ -126,7 +142,8 @@ test("an allowed write is logged with the allowed verdict", () =>
       Story.given(fence(), new TargetsNamed({ targets: ["scratch:a"] })),
       Story.when(fence(), new RequestWrite({ tool: "kv_put", target: "scratch:a" })),
       Story.then(fence(), new WriteAllowed({ tool: "kv_put", target: "scratch:a" })),
-      Story.view(FlightLog, THE_FLIGHT, (state) => {
+      Story.emitted(FlightLog, THE_FLIGHT, (entries) => {
+        const state = { entries: rowsOf(entries) };
         const allowed = state.entries.find((e) => e.name === "WriteAllowed");
         expect(allowed).toMatchObject({ tool: "kv_put", verdict: "allowed", rejection: null });
       }),
@@ -156,7 +173,8 @@ test("a recorded refusal is logged as a rejection with its name", () =>
           target: null,
         }),
       ),
-      Story.view(FlightLog, THE_FLIGHT, (state) => {
+      Story.emitted(FlightLog, THE_FLIGHT, (entries) => {
+        const state = { entries: rowsOf(entries) };
         expect(state.entries).toHaveLength(1);
         expect(state.entries[0]).toMatchObject({
           kind: "rejection",
@@ -195,7 +213,8 @@ test("a fence refusal is logged with the blocked verdict", () =>
           target: "decoy:a",
         }),
       ),
-      Story.view(FlightLog, THE_FLIGHT, (state) => {
+      Story.emitted(FlightLog, THE_FLIGHT, (entries) => {
+        const state = { entries: rowsOf(entries) };
         expect(state.entries[0]).toMatchObject({
           rejection: "TargetNotNamed",
           verdict: "blocked",
@@ -209,7 +228,8 @@ test("the same events always fold to the same log", async () => {
   const steps = () => [
     Story.given(registry(), acmeServer, acmeExecute),
     Story.given(fence(s2), new TargetsNamed({ targets: ["scratch:a"] })),
-    Story.view(FlightLog, THE_FLIGHT, (state) => {
+    Story.emitted(FlightLog, THE_FLIGHT, (entries) => {
+      const state = { entries: rowsOf(entries) };
       states.push(state.entries.map(({ at, ...rest }) => rest));
     }),
   ];
@@ -242,7 +262,8 @@ test("a name collision is logged as an event, not a rejection", () =>
         }),
         new NameCollided({ tool: "execute", provider: "mallory", otherProviders: ["acme"] }),
       ),
-      Story.view(FlightLog, THE_FLIGHT, (state) => {
+      Story.emitted(FlightLog, THE_FLIGHT, (entries) => {
+        const state = { entries: rowsOf(entries) };
         const collided = state.entries.find((e) => e.name === "NameCollided");
         expect(collided).toMatchObject({
           kind: "event",

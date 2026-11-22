@@ -12,7 +12,7 @@ import {
   writeReceipt,
 } from "../lib/common.ts";
 import { repoRoot, withStack } from "../lib/stack.ts";
-import { driveSession, seqsIn, sleep } from "./lib.ts";
+import { driveSession, flightHead, seqsIn, sleep } from "./lib.ts";
 
 const SESSIONS = Number(process.env.E3_SESSIONS ?? 20);
 const OFFICIAL = SESSIONS === 20;
@@ -23,10 +23,7 @@ const RUN = `e3-${Date.now().toString(36)}`;
 const main = async () => {
   const startedAt = new Date().toISOString();
   await withStack(async (urls) => {
-    const head = (await (await fetch(`${urls.gatewayUrl}/admin/flight/head`)).json()) as {
-      cursor: number;
-      entries: FlightRow[];
-    };
+    const head = await flightHead(urls.gatewayUrl);
     mkdirSync(`${repoRoot}/.dev`, { recursive: true });
     const out = `${repoRoot}/.dev/${RUN}.jsonl`;
     rmSync(out, { force: true });

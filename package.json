@@ -21,7 +21,8 @@
     "e3:reconnect": "bun experiments/flight-recorder/reconnect.ts",
     "demo": "bun experiments/demo/run.ts",
     "e2:control": "bun experiments/write-fence/control.ts",
-    "mutation": "bun scripts/mutation-check.ts"
+    "mutation": "bun scripts/mutation-check.ts",
+    "e4": "bun experiments/flight-stream/run.ts"
   },
   "dependencies": {
     "@alchemy.run/cloudflare": "2.0.0-beta.87",

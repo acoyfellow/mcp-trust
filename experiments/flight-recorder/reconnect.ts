@@ -12,7 +12,7 @@ import {
   writeReceipt,
 } from "../lib/common.ts";
 import { repoRoot, withStack } from "../lib/stack.ts";
-import { driveSession, seqsIn, sleep } from "./lib.ts";
+import { driveSession, flightHead, seqsIn, sleep } from "./lib.ts";
 
 const SESSIONS = Number(process.env.E3B_SESSIONS ?? 12);
 const OFFICIAL = SESSIONS === 12;
@@ -50,10 +50,7 @@ const startProxy = async (target: string, port = 0) => {
 const main = async () => {
   const startedAt = new Date().toISOString();
   await withStack(async (urls) => {
-    const head = (await (await fetch(`${urls.gatewayUrl}/admin/flight/head`)).json()) as {
-      cursor: number;
-      entries: FlightRow[];
-    };
+    const head = await flightHead(urls.gatewayUrl);
     const out = `${repoRoot}/.dev/${RUN}.jsonl`;
     rmSync(out, { force: true });
     let proxy = await startProxy(urls.gatewayUrl);

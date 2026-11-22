@@ -4,8 +4,9 @@ import {
   colorize,
   formatLine,
   type Recorded,
-  sourceOf,
+  type WireEntry,
 } from "../src/recorder/format.ts";
+import { sseEntries } from "../src/recorder/record.ts";
 import { hashState, replay } from "../src/recorder/replay.ts";
 
 const record = (
@@ -18,7 +19,7 @@ const record = (
   at,
   event,
   session,
-  source: sourceOf(event._tag),
+  source: "test",
   receivedAt: 0,
   wroteAt: 0,
   row: {} as Recorded["row"],
@@ -104,11 +105,6 @@ test("formatLine prints time, session, tool, provider with its verification, fen
   );
 });
 
-test("sourceOf refuses an event it does not know", () => {
-  expect(() => sourceOf("Unknown")).toThrow();
-  expect(() => sourceOf("__proto__")).toThrow();
-});
-
 test("colorize paints each tone and leaves the line alone when color is off", () => {
   expect(colorize("red", "x", true)).toBe("\u001b[31mx\u001b[0m");
   expect(colorize("green", "x", true)).toBe("\u001b[32mx\u001b[0m");
@@ -121,11 +117,10 @@ const wire = (
   seq: number,
   event: Recorded["event"],
   row: Partial<Recorded["row"]> = {},
-): Recorded["row"] extends never
-  ? never
-  : { seq: number; at: string; event: Recorded["event"]; row: Recorded["row"] } => ({
+): WireEntry => ({
   seq,
   at: "2026-11-21T23:17:53.100Z",
+  source: "test",
   event,
   row: {
     seq,
@@ -273,4 +268,23 @@ test("a collision in one session does not mark calls in another session", () => 
     ),
   );
   expect(other.tone).toBe("green");
+});
+
+test("sseEntries parses frames split across chunks and skips heartbeats", async () => {
+  const encoder = new TextEncoder();
+  const first = wire(1, { _tag: "TargetsNamed" });
+  const second = wire(2, { _tag: "ReadAllowed" }, { tool: "read_document" });
+  const text = `: ping\n\nid: 1\ndata: ${JSON.stringify(first)}\n\nid: 2\ndata: ${JSON.stringify(second)}\n\n`;
+  const cut = 37;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(text.slice(0, cut)));
+      controller.enqueue(encoder.encode(text.slice(cut, cut + 50)));
+      controller.enqueue(encoder.encode(text.slice(cut + 50)));
+      controller.close();
+    },
+  });
+  const seen: number[] = [];
+  for await (const entry of sseEntries(body)) seen.push(entry.seq);
+  expect(seen).toEqual([1, 2]);
 });

@@ -2,7 +2,6 @@ import { expect, test } from "bun:test";
 import * as Domain from "@alchemy.run/domain";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 import { FlightLog } from "../../src/domain/flight-log.ts";
 import { THE_FLIGHT } from "../../src/domain/ids.ts";
 import { McpTrust } from "../../src/domain/model.ts";
@@ -46,7 +45,7 @@ test("hosted in memory, commands reach the flight log and rejections reach the c
           signature: acmePassport("execute"),
         }),
       );
-      const routed = yield* registry.send(
+      yield* registry.send(
         s1,
         new RouteCall({ tool: "execute", server: "acme-1", provider: "acme", named: null }),
       );
@@ -56,11 +55,12 @@ test("hosted in memory, commands reach the flight log and rejections reach the c
         .pipe(Effect.flip);
       expect(refused._tag).toBe("TargetNotNamed");
 
-      const state = yield* log.get(THE_FLIGHT, {
-        atLeast: { stream: routed.stream, version: routed.version },
-      });
-      expect(Option.isSome(state)).toBe(true);
-      const names = Option.getOrThrow(state).entries.map((e) => e.name);
+      let names: ReadonlyArray<string> = [];
+      for (let attempt = 0; attempt < 50 && !names.includes("CallRouted"); attempt++) {
+        const page = yield* log.list(THE_FLIGHT, { take: 50 });
+        names = page.entries.map((e) => (e.event.event as { _tag: string })._tag);
+        if (!names.includes("CallRouted")) yield* Effect.sleep("20 millis");
+      }
       expect(names).toContain("CallRouted");
       expect(names).toContain("ToolRegistered");
     }).pipe(Effect.scoped, Effect.provide(Host)),

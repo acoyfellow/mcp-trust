@@ -15,6 +15,7 @@ export interface FlightRow {
 export interface WireEntry {
   readonly seq: number;
   readonly at: string;
+  readonly source: string;
   readonly event: { readonly _tag: string; readonly [field: string]: unknown };
   readonly row: FlightRow;
 }
@@ -25,23 +26,6 @@ export interface Recorded extends WireEntry {
   readonly receivedAt: number;
   readonly wroteAt: number;
 }
-
-const SOURCES: Readonly<Record<string, string>> = {
-  ServerRegistered: "ToolRegistry",
-  ToolRegistered: "ToolRegistry",
-  NameCollided: "ToolRegistry",
-  CallRouted: "ToolRegistry",
-  TargetsNamed: "WriteFence",
-  WriteAllowed: "WriteFence",
-  ReadAllowed: "WriteFence",
-  RefusalRecorded: "Refusals",
-};
-
-export const sourceOf = (tag: string): string => {
-  const source = Object.hasOwn(SOURCES, tag) ? SOURCES[tag] : undefined;
-  if (source === undefined) throw new Error(`no source known for event ${tag}`);
-  return source;
-};
 
 export const BANNER = "mcp-trust recording";
 

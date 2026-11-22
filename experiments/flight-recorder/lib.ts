@@ -1,4 +1,5 @@
 import { connect } from "../../src/mcp/rpc.ts";
+import type { FlightRow } from "../../src/recorder/format.ts";
 import { post } from "../lib/common.ts";
 import type { Urls } from "../lib/stack.ts";
 
@@ -38,3 +39,13 @@ export const driveSession = async (urls: Urls, RUN: string, i: number, rng: () =
 
 export const seqsIn = (text: string): number[] =>
   [...text.matchAll(/^#(\d+) /gm)].map((m) => Number(m[1]));
+
+export const flightHead = async (gatewayUrl: string) => {
+  const { cursor } = (await (await fetch(`${gatewayUrl}/admin/flight/head`)).json()) as {
+    cursor: number;
+  };
+  const { entries } = (await (await fetch(`${gatewayUrl}/admin/flight`)).json()) as {
+    entries: FlightRow[];
+  };
+  return { cursor, entries };
+};
