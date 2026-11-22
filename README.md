@@ -2,6 +2,10 @@
 
 An experiment notebook. It tests two defenses for an agent that connects to many MCP servers.
 
+**Explainer: [trust.customer0.dev](https://trust.customer0.dev)** shows how the write fence works, why no model makes the decision, and what the experiment measured.
+
+<a href="https://trust.customer0.dev"><img src="docs/write-fence.png" alt="Diagram of the write fence. The user's prompt goes through a fixed pattern into a list of allowed targets. The agent reads a poisoned document and makes three calls through the fence: a read passes, a write to the named target passes, and a write to the injected decoy target is refused with TargetNotNamed." width="100%"></a>
+
 ## Demo
 
 <img src="docs/demo.gif" alt="Terminal recording of the mcp-trust demo: an agent picks a lookalike provider, the gateway refuses it and the agent recovers, an injected write is blocked, and a clean write is allowed, with the flight log in a pane beside it." width="100%">
@@ -89,3 +93,7 @@ receipts/        evidence
 docs/            domain rules and the receipt schema
 scripts/         checks
 ```
+
+## The explainer site
+
+`site/` holds the page at [trust.customer0.dev](https://trust.customer0.dev). It is static HTML on Workers static assets, with no bindings. Deploy it with `cd site && wrangler deploy`.

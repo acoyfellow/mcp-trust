@@ -1,0 +1,9 @@
+{
+  "name": "mcp-trust-site",
+  "compatibility_date": "2026-11-01",
+  "account_id": "29db7c74093386544fed8046ef083a4b",
+  "assets": { "directory": "./public", "not_found_handling": "none" },
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "trust.customer0.dev", "custom_domain": true }]
+}
