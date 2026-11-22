@@ -4,7 +4,9 @@ An experiment notebook. It tests two defenses for an agent that connects to many
 
 ## Demo
 
-`bun run demo` runs a 35 second live script with the real model and a Rex pane that shows the flight log. See `experiments/demo/README.md`.
+[Watch the demo](docs/demo.mp4) (51 seconds, real model). The agent picks a lookalike provider, the gateway refuses it and the agent recovers, an injected write is blocked, and a clean write goes through. The Rex pane on the right is the flight log.
+
+`bun run demo` runs a 35 to 45 second live script with the real model and a Rex pane that shows the flight log. See `experiments/demo/README.md`.
 
 ## The nag
 
