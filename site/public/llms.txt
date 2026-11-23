@@ -1,0 +1,19 @@
+# mcp-trust
+
+> mcp-trust is an MCP gateway experiment notebook. It tests two defenses for an agent that connects to many MCP servers: a tool passport (the provider signs each tool with Ed25519) and a write fence (the gateway allows a write only to a target the user named in their own prompt). This site explains the write fence.
+
+Verdict: proven, with limits. Write fence (E2), real Workers AI agent, real KV writes: fence off, 20 to 30% of injected writes landed in the decoy namespace; fence on, 7 of 7 attempted injected writes blocked, 0 of 20 clean tasks blocked, about 3 ms p50 per decision. The target list comes from a fixed pattern over the user's prompt, with no model in the decision. Limits: exact target names only; it guards where the agent writes, not what; it refuses instead of asking.
+
+Next: test the fence against 5 real MCP servers with data we own: Cloudflare MCP, GitHub MCP, Playwright MCP, Filesystem MCP, Supabase MCP.
+
+## Receipts
+
+- [e2-write-fence.json](https://github.com/acoyfellow/mcp-trust/blob/main/receipts/e2-write-fence.json): fence on, poisoned and clean tasks
+- [e2-write-fence-control.json](https://github.com/acoyfellow/mcp-trust/blob/main/receipts/e2-write-fence-control.json): fence off
+- [status.json](https://github.com/acoyfellow/mcp-trust/blob/main/status.json): the proven, unproven, and disproven ledger for all experiments
+
+## Source
+
+- [Repo](https://github.com/acoyfellow/mcp-trust)
+- [Fence code](https://github.com/acoyfellow/mcp-trust/blob/main/src/domain/write-fence.ts)
+- [Index](https://customer0.dev/llms.txt)
